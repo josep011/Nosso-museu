@@ -178,7 +178,8 @@ export function criarGato(gltf, { humorInicial = 'normal' } = {}) {
   const POSE_SENTADO = { pE: [-1.45, 0, 0], pD: [-1.45, 0, 0], cE: [1.45, 0, 0], cD: [1.45, 0, 0],
                          bE: [-0.55, 0, 0.22], bD: [-0.55, 0, -0.22], aE: [-0.7, 0, 0.25], aD: [-0.7, 0, -0.25], tr: [-0.04, 0, 0] };
   let sentAlvo = 0, sentK = 0;
-  function sentar(sim = true) { sentAlvo = sim ? 1 : 0; }
+  let joelho = 1.45;      // dobra do joelho: 1.45 = canela pendurada, ~0.25 = perna esticada para a frente
+  function sentar(sim = true, esticado = false) { sentAlvo = sim ? 1 : 0; if (sim) joelho = esticado ? 0.25 : 1.45; }
   function aplicarAcao(t) {
     if (!A && sentK === 0) return;
     let r = {};
@@ -188,7 +189,7 @@ export function criarGato(gltf, { humorInicial = 'normal' } = {}) {
       if (p >= 1) A = null; else { r = A.f(p, t - A.t0); if (k < 1) r = escala(r, k); }
     }
     if (sentK > 0) {      // pernas sempre sentadas; braços/tronco sentados se o gesto não os usa
-      for (const m of ['pE', 'pD', 'cE', 'cD']) r[m] = POSE_SENTADO[m].map((x) => x * sentK);
+      for (const m of ['pE', 'pD', 'cE', 'cD']) r[m] = (m[0] === 'c' ? [joelho, 0, 0] : POSE_SENTADO[m]).map((x) => x * sentK);
       for (const m of ['bE', 'bD', 'aE', 'aD', 'tr']) if (!r[m]) r[m] = POSE_SENTADO[m].map((x) => x * sentK);
       r.y = 0;
     }

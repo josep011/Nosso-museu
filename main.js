@@ -6,6 +6,8 @@ import { criarGato } from './gato.js';
 import { construirSalao, ZONAS, SPAWN } from './salao.js';
 import { criarQuadros } from './quadros.js';
 import { construirMobilia } from './mobilia.js';
+import { construirDecoracao } from './decoracao.js';
+import { criarRecepcionista } from './recepcionista.js';
 import * as armazem from './armazem.js';
 
 const ALTURA_GATO = 1.3;      // altura do gato no jogo, em metros
@@ -26,6 +28,7 @@ const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 120);
 const salao = construirSalao(cena);
 const quadros = criarQuadros(cena);
 const mobilia = construirMobilia(cena, salao);
+construirDecoracao(cena, salao);
 
 function ajustar() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -106,6 +109,8 @@ const jogadores = [
   criarJogador(gTerno, 'Gatinho de terno', SPAWN.terno, { terno: true }),
   criarJogador(gMedica, 'Gatinha médica', SPAWN.medica),
 ];
+const recep = criarRecepcionista(gTerno, cena, { x: 2.0, z: 7.0, yaw: Math.PI });
+salao.colliders.push({ x0: 1.8, z0: 6.8, x1: 2.2, z1: 7.2 });      // funcionário da recepção (não jogável)
 let ativo = 0;
 const eu = () => jogadores[ativo];
 
@@ -143,7 +148,7 @@ function acharAssento(p) {
 function sentar(p, a) {
   if (p.assento || !a || (a.ocupado && a.ocupado !== p)) return;
   if (p.andando) { p.gato.parar(0.1); p.andando = false; }
-  p.assento = a; a.ocupado = p; p.altSent = a.alt + 0.03 - p.hipAlt; p.gato.sentar(true); sairZoom();
+  p.assento = a; a.ocupado = p; p.altSent = a.alt + 0.03 - p.hipAlt; p.gato.sentar(true, a.esticado); sairZoom();
 }
 function levantar(p) {
   const a = p.assento; if (!a) return;
@@ -167,9 +172,9 @@ function rotularQuadro() {
   $('btnFoto').textContent = q.temFoto ? 'Trocar foto' : 'Adicionar foto'; $('btnRemover').hidden = !q.temFoto;
 }
 function atualizarQuadro() {
-  const q = cima ? null : quadros.perto(eu().x, eu().z, eu().yaw);
+  const q = zoomQ || (cima ? null : quadros.perto(eu().x, eu().z, eu().yaw));
   const a = eu().assento ? null : acharAssento(eu());
-  if (q !== quadroAtual || a !== assentoPerto) { quadroAtual = q; assentoPerto = a; quadros.realce(q); rotularQuadro(); if (zoomQ && q !== zoomQ) sairZoom(); }
+  if (q !== quadroAtual || a !== assentoPerto) { quadroAtual = q; assentoPerto = a; quadros.realce(q); rotularQuadro(); }
 }
 // reduz a foto (lado maior 1600 px) e corrige a rotação do celular antes de guardar
 async function prepararFoto(arquivo) {
@@ -214,9 +219,31 @@ function visadaQuadro(q) {      // onde a câmera fica e quanto de zoom usar par
   const alturaVista = Math.max((q.H + 0.14) / 0.8, ((q.W + 0.14) / 0.88) / camera.aspect);
   return { c: vC, pos: vPos, fov: Math.min(75, Math.max(28, 2 * Math.atan(alturaVista / 2 / D) * 180 / Math.PI)) };
 }
-function sairZoom() { if (!zoomQ) return; zoomQ = null; $('btnPerto').textContent = 'Ver de perto'; }
+let histZoom = [];      // quadros já vistos nesta "visita de perto" (para o botão de voltar)
+function navUI() { $('qAnt').hidden = !(zoomQ && histZoom.length); $('qProx').hidden = !zoomQ; }
+function sairZoom() { if (!zoomQ) return; zoomQ = null; histZoom = []; $('btnPerto').textContent = 'Ver de perto'; navUI(); }
+function proximoQuadro(q) {      // o quadro mais perto deste que dá para ver sem parede no meio e ainda não visitado
+  const v = visadaQuadro(q), origem = v.pos.clone(), cq = quadros.centro(q), alvoC = new THREE.Vector3(), d = new THREE.Vector3();
+  const pontua = (livre) => {
+    let melhor = null, md = 1e9;
+    for (const o of quadros.lista) {
+      if (o === q || (!livre && histZoom.includes(o))) continue;
+      const c = quadros.centro(o); alvoC.set(c.x, c.y, c.z);
+      if (o.nx * (origem.x - c.x) + o.nz * (origem.z - c.z) <= 0) continue;      // está de costas
+      const dist = Math.hypot(c.x - cq.x, (c.y - cq.y) * 0.6, c.z - cq.z);
+      if (dist >= md) continue;
+      d.copy(alvoC).sub(origem); const L = d.length(); raio.set(origem, d.normalize()); raio.far = L - 0.1;
+      if (raio.intersectObjects(salao.paredes.children, true).length) continue;   // parede no caminho
+      md = dist; melhor = o;
+    }
+    return melhor;
+  };
+  return pontua(false) || pontua(true);
+}
+$('qProx').addEventListener('click', () => { const o = zoomQ && proximoQuadro(zoomQ); if (!o) return; histZoom.push(zoomQ); zoomQ = ultimoZoom = o; navUI(); });
+$('qAnt').addEventListener('click', () => { if (!zoomQ || !histZoom.length) return; zoomQ = ultimoZoom = histZoom.pop(); navUI(); });
 $('btnPerto').addEventListener('click', () => {
-  if (zoomQ) sairZoom(); else if (quadroAtual) { zoomQ = ultimoZoom = quadroAtual; $('btnPerto').textContent = 'Voltar'; }
+  if (zoomQ) sairZoom(); else if (quadroAtual) { zoomQ = ultimoZoom = quadroAtual; histZoom = []; $('btnPerto').textContent = 'Voltar'; navUI(); }
 });
 
 // ---------- laço do jogo ----------
@@ -297,6 +324,7 @@ function atualizarZona(dt) {
 function passo(dt) {
   dt = Math.min(dt, 0.1);
   mover(eu(), dt);
+  recep.atualizar(dt, jogadores);
   for (const j of jogadores) if (j !== eu() && j.assento) acomodar(j, dt);
   for (const j of jogadores) { j.gato.atualizar(dt); j.grupo.position.y = j.altSent * j.gato.nivelSentado(); }
   atualizarCamera(dt); atualizarZona(dt); atualizarQuadro();
@@ -309,7 +337,7 @@ $('carregando').classList.add('fim');
 
 // gancho para testes automáticos
 window.museu = {
-  jogadores, cam, salao, mobilia, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
+  jogadores, cam, salao, mobilia, recep, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
   ativo: () => ativo,
   colocar(x, z, yaw) { const p = eu(); p.x = x; p.z = z; if (yaw != null) p.yaw = yaw; p.grupo.position.set(x, 0, z); p.grupo.rotation.y = p.yaw; camera.position.set(x + Math.sin(cam.yaw) * cam.dist, 2.4, z + Math.cos(cam.yaw) * cam.dist); },
   cima(on) { if (on !== cima) $('btnCima').click(); },

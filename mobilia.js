@@ -89,19 +89,19 @@ export function construirMobilia(cena, salao) {
   const assentos = [];
   let n = 0;
   // põe uma peça: (x, z) no chão, yaw = para onde a frente olha. Colisão = retângulo da peça (yaw múltiplo de 90°).
-  function por(peca, x, z, yaw, { colisao = true, assentosLocais = [], nome = '' } = {}) {
+  function por(peca, x, z, yaw, { colisao = true, assentosLocais = [], nome = '', lzAssento = -0.05, esticado = false } = {}) {
     const { g, w, d, alt } = peca;
     g.position.set(x, 0, z); g.rotation.y = yaw; cena.add(g);
     const gir = Math.abs(Math.sin(yaw)) > 0.5, W = gir ? d : w, D = gir ? w : d;
     if (colisao) salao.colliders.push({ x0: x - W / 2, z0: z - D / 2, x1: x + W / 2, z1: z + D / 2 });
     for (const lx of assentosLocais) {       // posição do assento no mundo (um pouco para trás do centro)
-      const lz = -0.05, c = Math.cos(yaw), s = Math.sin(yaw);
-      assentos.push({ id: `${nome}-${++n}`, nome, x: x + lx * c + lz * s, z: z - lx * s + lz * c, yaw, alt, prof: d, ocupado: null });
+      const lz = lzAssento, c = Math.cos(yaw), s = Math.sin(yaw);
+      assentos.push({ id: `${nome}-${++n}`, nome, x: x + lx * c + lz * s, z: z - lx * s + lz * c, yaw, alt, prof: d, esticado, ocupado: null });
     }
     return g;
   }
   const doisLugares = (len) => (len >= 1.6 ? [-0.42, 0.42] : [0]);
-  const bancoEm = (len, x, z, yaw, nome) => por(banco(len), x, z, yaw, { assentosLocais: doisLugares(len), nome });
+  const bancoEm = (len, x, z, yaw, nome) => por(banco(len), x, z, yaw, { assentosLocais: doisLugares(len), nome, lzAssento: 0.22 });
 
   // ---- bancos para sentar e olhar os quadros / a vista ----
   bancoEm(1.9, 0, -1.9, Math.PI, 'Banco da galeria');          // de frente para a fileira de quadros do painel central
@@ -113,14 +113,14 @@ export function construirMobilia(cena, salao) {
 
   // ---- canto de leitura: duas poltronas, mesinha, luminária e tapete redondo ----
   por(tapete(3.4, 3.4, COR.rosa, COR.bege, true), -7.4, -4.6, 0, { colisao: false });
-  por(poltrona(COR.salvia), -6.7, -3.55, Math.PI / 2, { assentosLocais: [0], nome: 'Poltrona' });
-  por(poltrona(COR.azul), -6.7, -5.65, Math.PI / 2, { assentosLocais: [0], nome: 'Poltrona' });
+  por(poltrona(COR.salvia), -6.7, -3.55, Math.PI / 2, { assentosLocais: [0], nome: 'Poltrona', lzAssento: 0.06, esticado: true });
+  por(poltrona(COR.azul), -6.7, -5.65, Math.PI / 2, { assentosLocais: [0], nome: 'Poltrona', lzAssento: 0.06, esticado: true });
   por(mesaLateral(), -6.7, -4.6, 0);
   por(luminaria(), -6.5, -2.55, 0);
 
   // ---- sala de estar: sofá de dois lugares, mesa de centro, mesinha, luminária e tapete ----
   por(tapete(3.4, 3.2, COR.salvia, COR.bege), -8.0, 4.5, 0, { colisao: false });
-  por(sofa(COR.creme, COR.terracota), -6.6, 4.5, -Math.PI / 2, { assentosLocais: [-0.42, 0.42], nome: 'Sofá' });
+  por(sofa(COR.creme, COR.terracota), -6.6, 4.5, -Math.PI / 2, { assentosLocais: [-0.42, 0.42], nome: 'Sofá', lzAssento: 0.06, esticado: true });
   por(mesaCentro(), -8.3, 4.5, 0);
   por(mesaLateral(), -6.6, 6.0, 0);
   por(luminaria(), -6.4, 6.6, 0);

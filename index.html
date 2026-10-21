@@ -42,6 +42,8 @@
   #quadroUI button { min-width: 150px; }
   #btnFoto { background: var(--destaque); color: #2a2830; border-color: transparent; font-weight: 600; }
   #quadroUI small { font-size: 11px; color: var(--suave); }
+  .navq { position: fixed; top: 42%; width: 52px; height: 52px; font-size: 34px; line-height: 1; padding: 0 0 4px; background: rgba(28,27,32,.55); color: #f4f1ea; border: 1px solid var(--borda); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  #qAnt { left: max(10px, env(safe-area-inset-left)); } #qProx { right: max(10px, env(safe-area-inset-right)); }
   #aviso { position: fixed; left: 50%; top: max(110px, calc(env(safe-area-inset-top) + 98px)); transform: translateX(-50%); padding: 8px 14px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 86vw; text-align: center; }
   #aviso.on { opacity: 1; }
 </style>
@@ -75,10 +77,12 @@
   <small id="notaFoto">A foto fica só neste aparelho.</small>
 </div>
 <input type="file" id="arqFoto" accept="image/*" hidden>
+<button id="qAnt" class="redondo navq" aria-label="Quadro anterior" hidden>‹</button>
+<button id="qProx" class="redondo navq" aria-label="Próximo quadro" hidden>›</button>
 <div id="aviso" class="vidro"></div>
 
 <script type="importmap">
-{ "imports": { "three": "./three.module.js", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js" } }
+{ "imports": { "three": "./three.module.js", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js", "three/addons/utils/BufferGeometryUtils.js": "./BufferGeometryUtils.js" } }
 </script>
 <script type="module" src="./main.js"></script>
 </body>
