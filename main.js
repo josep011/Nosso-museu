@@ -2,14 +2,14 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { criarGato } from './gato.js';
-import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js';
-import { criarOnline, codigoValido } from './online.js';
-import { criarQuadros } from './quadros.js';
-import { construirMobilia } from './mobilia.js';
-import { construirDecoracao } from './decoracao.js';
-import { criarRecepcionista } from './recepcionista.js';
-import * as armazem from './armazem.js';
+import { criarGato } from './gato.js?v=202610211911';
+import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610211911';
+import { criarOnline, codigoValido } from './online.js?v=202610211911';
+import { criarQuadros } from './quadros.js?v=202610211911';
+import { construirMobilia } from './mobilia.js?v=202610211911';
+import { construirDecoracao } from './decoracao.js?v=202610211911';
+import { criarRecepcionista } from './recepcionista.js?v=202610211911';
+import * as armazem from './armazem.js?v=202610211911';
 
 const ALTURA_GATO = 1.3;      // altura do gato no jogo, em metros
 const RAIO = 0.38;            // "tamanho" do gato para colisões

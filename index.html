@@ -78,7 +78,7 @@
 <body>
 <canvas id="cena"></canvas>
 
-<div id="carregando"><div><h1>Nosso Museu</h1><div id="barra"><i></i></div></div></div>
+<div id="carregando"><div><h1>Nosso Museu</h1><div id="barra"><i></i></div><p id="erroCarga" style="display:none;max-width:300px;margin:16px auto 0;font-size:13px;color:#f0b8a8"></p></div></div>
 
 <div id="escolha" hidden>
   <div class="caixa">
@@ -141,9 +141,15 @@
 <button id="qProx" class="redondo navq" aria-label="Próximo quadro" hidden>›</button>
 <div id="aviso" class="vidro"></div>
 
-<script type="importmap">
-{ "imports": { "three": "./three.module.js", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js", "three/addons/utils/BufferGeometryUtils.js": "./BufferGeometryUtils.js" } }
+<script>
+  // se algo der errado ao abrir, mostra o motivo em vez de ficar parado
+  function mostrarErro(m){var e=document.getElementById('erroCarga');if(e){e.style.display='block';e.textContent='Não consegui abrir o museu: '+m+' — tente recarregar a página.';}}
+  addEventListener('error',function(ev){mostrarErro(ev.message||'erro');});
+  addEventListener('unhandledrejection',function(ev){mostrarErro((ev.reason&&ev.reason.message)||'erro');});
 </script>
-<script type="module" src="./main.js"></script>
+<script type="importmap">
+{ "imports": { "three": "./three.module.js?v=202610211911", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js?v=202610211911", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js?v=202610211911", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js?v=202610211911", "three/addons/utils/BufferGeometryUtils.js": "./BufferGeometryUtils.js?v=202610211911" } }
+</script>
+<script type="module" src="./main.js?v=202610211911"></script>
 </body>
 </html>
