@@ -1,9 +1,5 @@
-NOSSO MUSEU - arquivos para o GitHub (todos soltos, sem pastas)
-
-1. Crie um repositorio PUBLICO no GitHub.
-2. Add file > Upload files, selecione TODOS estes arquivos (inclusive os dois .glb) e confirme (Commit).
-3. Settings > Pages > Source: "Deploy from a branch", Branch: main, pasta "/ (root)" > Save.
-4. Espere 1 a 2 minutos. O link aparece em Settings > Pages.
-
-Os gatos (.glb) sao copias dos originais, sem alteracao.
-Biblioteca 3D: three.js r170 (licenca MIT, ver LICENSE-three.txt).
+NOSSO MUSEU — como atualizar no GitHub
+1. No repositório, apague os arquivos antigos e envie TODOS os arquivos desta pasta (Add file > Upload files).
+2. Commit. Em Settings > Pages, a branch main / root fica publicada.
+3. Abra o link e aguarde 1-2 minutos.
+As fotos dos quadros ficam só no aparelho de quem as adiciona (não vão para o GitHub).

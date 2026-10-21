@@ -37,6 +37,13 @@
   #barra { width: 200px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.15); margin: 0 auto; overflow: hidden; }
   #barra i { display: block; height: 100%; width: 0; background: var(--destaque); transition: width .2s; }
   @media (hover: hover) and (pointer: fine) { #joy { opacity: .55; } }
+  [hidden] { display: none !important; }
+  #quadroUI { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(28px, env(safe-area-inset-bottom)); padding: 10px 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+  #quadroUI button { min-width: 150px; }
+  #btnFoto { background: var(--destaque); color: #2a2830; border-color: transparent; font-weight: 600; }
+  #quadroUI small { font-size: 11px; color: var(--suave); }
+  #aviso { position: fixed; left: 50%; top: max(110px, calc(env(safe-area-inset-top) + 98px)); transform: translateX(-50%); padding: 8px 14px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 86vw; text-align: center; }
+  #aviso.on { opacity: 1; }
 </style>
 </head>
 <body>
@@ -60,8 +67,18 @@
 </div>
 <div id="dica">WASD ou setas para andar · arraste para girar a câmera</div>
 
+<div id="quadroUI" class="vidro" hidden>
+  <button id="btnSentar" hidden>Sentar</button>
+  <button id="btnPerto">Ver de perto</button>
+  <button id="btnFoto">Adicionar foto</button>
+  <button id="btnRemover" hidden>Remover foto</button>
+  <small id="notaFoto">A foto fica só neste aparelho.</small>
+</div>
+<input type="file" id="arqFoto" accept="image/*" hidden>
+<div id="aviso" class="vidro"></div>
+
 <script type="importmap">
-{ "imports": { "three": "./three.module.js", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js" } }
+{ "imports": { "three": "./three.module.js", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js" } }
 </script>
 <script type="module" src="./main.js"></script>
 </body>

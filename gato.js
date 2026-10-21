@@ -174,16 +174,25 @@ export function criarGato(gltf, { humorInicial = 'normal' } = {}) {
     if (A.fim == null) A.fim = relogio.elapsedTime, A.suave = suave;
   }
   const escala = (r, k) => { const o = {}; for (const [n, v] of Object.entries(r)) o[n] = typeof v === 'number' ? v * k : v.map((x) => x * k); return o; };
+  // ---------- sentado: pose base (pernas, braços no colo) que convive com os gestos de braço/cabeça ----------
+  const POSE_SENTADO = { pE: [-1.45, 0, 0], pD: [-1.45, 0, 0], cE: [1.45, 0, 0], cD: [1.45, 0, 0],
+                         bE: [-0.55, 0, 0.22], bD: [-0.55, 0, -0.22], aE: [-0.7, 0, 0.25], aD: [-0.7, 0, -0.25], tr: [-0.04, 0, 0] };
+  let sentAlvo = 0, sentK = 0;
+  function sentar(sim = true) { sentAlvo = sim ? 1 : 0; }
   function aplicarAcao(t) {
-    if (!A) return;
-    let p = (t - A.t0) / A.dur;
-    let k = 1;
-    if (A.fim != null) { k = 1 - sm((t - A.fim) / A.suave); if (k <= 0) p = 1; }
-    for (const m of MEMBROS) poe(J[m], [0, 0, 0]);
-    if (p >= 1) { A = null; gata.position.y = base.y; gata.rotation.y = base.ry; return; }
-    let r = A.f(p, t - A.t0);
-    if (k < 1) r = escala(r, k);
-    for (const m of MEMBROS) if (r[m]) poe(J[m], r[m]);
+    if (!A && sentK === 0) return;
+    let r = {};
+    if (A) {
+      let p = (t - A.t0) / A.dur, k = 1;
+      if (A.fim != null) { k = 1 - sm((t - A.fim) / A.suave); if (k <= 0) p = 1; }
+      if (p >= 1) A = null; else { r = A.f(p, t - A.t0); if (k < 1) r = escala(r, k); }
+    }
+    if (sentK > 0) {      // pernas sempre sentadas; braços/tronco sentados se o gesto não os usa
+      for (const m of ['pE', 'pD', 'cE', 'cD']) r[m] = POSE_SENTADO[m].map((x) => x * sentK);
+      for (const m of ['bE', 'bD', 'aE', 'aD', 'tr']) if (!r[m]) r[m] = POSE_SENTADO[m].map((x) => x * sentK);
+      r.y = 0;
+    }
+    for (const m of MEMBROS) poe(J[m], r[m] || [0, 0, 0]);
     for (const m of ['tr', 'cab', 'oE', 'oD']) if (r[m]) poe(J[m], r[m], true);
     gata.position.y = base.y + (r.y || 0); gata.rotation.y = base.ry + (r.ry || 0);
   }
@@ -191,6 +200,7 @@ export function criarGato(gltf, { humorInicial = 'normal' } = {}) {
   function quadro(dt) {
     dt = Math.min(dt, 0.1); relogio.elapsedTime += dt; const t = relogio.elapsedTime;
     mixer.update(dt);
+    sentK += (sentAlvo - sentK) * (1 - Math.exp(-8 * dt)); if (Math.abs(sentAlvo - sentK) < 0.004) sentK = sentAlvo;
     if (humorAtual !== 'tchau') {
       const tt = t - t0, lento = H.lento || 1;
       // corpo "vivo": balança, respira; pula de alegria, treme de raiva ou roda de tontura
@@ -223,7 +233,8 @@ export function criarGato(gltf, { humorInicial = 'normal' } = {}) {
   return {
     modelo: gata,
     atualizar: quadro,          // atualizar(dt em segundos)
-    humor, expressao, acao, parar,
+    humor, expressao, acao, parar, sentar,
+    nivelSentado: () => sentK,
     acoes: Object.keys(ACOES),
     humores: Object.keys(HUMORES),
   };

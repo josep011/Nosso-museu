@@ -4,6 +4,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { criarGato } from './gato.js';
 import { construirSalao, ZONAS, SPAWN } from './salao.js';
+import { criarQuadros } from './quadros.js';
+import { construirMobilia } from './mobilia.js';
+import * as armazem from './armazem.js';
 
 const ALTURA_GATO = 1.3;      // altura do gato no jogo, em metros
 const RAIO = 0.38;            // "tamanho" do gato para colisões
@@ -21,6 +24,8 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 cena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; cena.environmentIntensity = 0.35;
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 120);
 const salao = construirSalao(cena);
+const quadros = criarQuadros(cena);
+const mobilia = construirMobilia(cena, salao);
 
 function ajustar() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -38,7 +43,10 @@ function criarJogador(gltf, nome, spawn, extra = {}) {
   const grupo = new THREE.Group(); grupo.add(interno); cena.add(grupo);
   gato.modelo.traverse((o) => { if (o.isMesh) { o.castShadow = !FACE.test(o.name); o.receiveShadow = false; } });
   grupo.position.set(spawn.x, 0, spawn.z); grupo.rotation.y = spawn.yaw;
-  return { nome, gato, grupo, x: spawn.x, z: spawn.z, yaw: spawn.yaw, andando: false, esc, ...extra };
+  grupo.updateMatrixWorld(true);       // altura do quadril em pé (para encaixar no assento ao sentar)
+  const perna = gato.modelo.getObjectByName('perna_esq'); const vq = new THREE.Vector3();
+  const hipAlt = perna ? perna.getWorldPosition(vq).y : 0.26;
+  return { nome, gato, grupo, x: spawn.x, z: spawn.z, yaw: spawn.yaw, andando: false, esc, hipAlt, assento: null, altSent: 0, ...extra };
 }
 
 // ---------- colisões ----------
@@ -76,7 +84,7 @@ joyEl.addEventListener('pointerup', joyFim); joyEl.addEventListener('pointercanc
 
 const cam = { yaw: 0, pitch: 0.38, dist: 4.4 };
 let arrasto = null;
-$('cena').addEventListener('pointerdown', (e) => { if (arrasto) return; arrasto = { id: e.pointerId, x: e.clientX, y: e.clientY }; $('cena').setPointerCapture(e.pointerId); $('painel').classList.remove('on'); });
+$('cena').addEventListener('pointerdown', (e) => { sairZoom(); if (arrasto) return; arrasto = { id: e.pointerId, x: e.clientX, y: e.clientY }; $('cena').setPointerCapture(e.pointerId); $('painel').classList.remove('on'); });
 $('cena').addEventListener('pointermove', (e) => {
   if (!arrasto || e.pointerId !== arrasto.id) return;
   cam.yaw -= (e.clientX - arrasto.x) * 0.0055; cam.pitch = Math.max(0.05, Math.min(1.1, cam.pitch + (e.clientY - arrasto.y) * 0.004));
@@ -117,10 +125,99 @@ for (const [k, v] of Object.entries(HUMORES)) $('gradeHumores').append(botao(v, 
 for (const [k, v] of Object.entries(GESTOS)) $('gradeGestos').append(botao(v, () => fazerGesto(eu(), k)));
 $('btnEmocoes').addEventListener('click', () => $('painel').classList.toggle('on'));
 function atualizarNome() { $('nomeGato').textContent = eu().nome; }
-$('trocar').addEventListener('click', () => { eu().gato.parar(0.1); eu().andando = false; ativo = (ativo + 1) % jogadores.length; atualizarNome(); });
+$('trocar').addEventListener('click', () => { sairZoom(); eu().gato.parar(0.1); eu().andando = false; ativo = (ativo + 1) % jogadores.length; atualizarNome(); });
 atualizarNome();
 let cima = false;
 $('btnCima').addEventListener('click', () => { cima = !cima; salao.esconderTeto(cima); $('btnCima').textContent = cima ? 'Voltar ao gato' : 'Ver de cima'; });
+
+// ---------- sentar nos bancos, poltronas e sofá ----------
+let assentoPerto = null;
+function acharAssento(p) {
+  let melhor = null, md = 1.25;
+  for (const a of mobilia.assentos) {
+    if (a.ocupado && a.ocupado !== p) continue;
+    const d = Math.hypot(a.x - p.x, a.z - p.z); if (d < md) { md = d; melhor = a; }
+  }
+  return melhor;
+}
+function sentar(p, a) {
+  if (p.assento || !a || (a.ocupado && a.ocupado !== p)) return;
+  if (p.andando) { p.gato.parar(0.1); p.andando = false; }
+  p.assento = a; a.ocupado = p; p.altSent = a.alt + 0.03 - p.hipAlt; p.gato.sentar(true); sairZoom();
+}
+function levantar(p) {
+  const a = p.assento; if (!a) return;
+  p.gato.sentar(false); p.assento = null; a.ocupado = null;
+  p.x = a.x + Math.sin(a.yaw) * 0.6; p.z = a.z + Math.cos(a.yaw) * 0.6; empurrar(p);   // levanta para a frente do assento
+}
+function alternarSentar() { const p = eu(); if (p.assento) levantar(p); else sentar(p, acharAssento(p)); rotularQuadro(); }
+$('btnSentar').addEventListener('click', alternarSentar);
+addEventListener('keydown', (e) => { if (e.code === 'KeyE' && !e.repeat) alternarSentar(); });
+
+// ---------- fotos nos quadros ----------
+let quadroAtual = null, tAviso = 0;
+function aviso(txt) { $('aviso').textContent = txt; $('aviso').classList.add('on'); clearTimeout(tAviso); tAviso = setTimeout(() => $('aviso').classList.remove('on'), 3500); }
+function rotularQuadro() {
+  const q = quadroAtual; const sent = !!eu().assento;
+  $('quadroUI').hidden = !(q || sent || assentoPerto);
+  $('btnSentar').hidden = !(sent || assentoPerto); $('btnSentar').textContent = sent ? 'Levantar' : 'Sentar';
+  for (const id of ['btnPerto', 'btnFoto']) $(id).hidden = !q;
+  $('notaFoto').hidden = !q;
+  if (!q) { $('btnRemover').hidden = true; return; }
+  $('btnFoto').textContent = q.temFoto ? 'Trocar foto' : 'Adicionar foto'; $('btnRemover').hidden = !q.temFoto;
+}
+function atualizarQuadro() {
+  const q = cima ? null : quadros.perto(eu().x, eu().z, eu().yaw);
+  const a = eu().assento ? null : acharAssento(eu());
+  if (q !== quadroAtual || a !== assentoPerto) { quadroAtual = q; assentoPerto = a; quadros.realce(q); rotularQuadro(); if (zoomQ && q !== zoomQ) sairZoom(); }
+}
+// reduz a foto (lado maior 1600 px) e corrige a rotação do celular antes de guardar
+async function prepararFoto(arquivo) {
+  const bmp = await createImageBitmap(arquivo, { imageOrientation: 'from-image' });
+  const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height); bmp.close?.();
+  const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.88));
+  return { tela: c, blob };
+}
+$('btnFoto').addEventListener('click', () => $('arqFoto').click());
+addEventListener('keydown', (e) => { if (e.code === 'KeyF' && quadroAtual && !e.repeat) $('arqFoto').click(); });
+$('arqFoto').addEventListener('change', async (e) => {
+  const arquivo = e.target.files[0]; e.target.value = ''; const q = quadroAtual;
+  if (!arquivo || !q) return;
+  try {
+    const { tela, blob } = await prepararFoto(arquivo);
+    quadros.colocarFoto(q, tela); rotularQuadro();
+    try { await armazem.salvar(q.id, blob); } catch { aviso('A foto aparece, mas não deu para guardar neste aparelho.'); }
+  } catch { aviso('Não consegui abrir essa imagem.'); }
+});
+$('btnRemover').addEventListener('click', async () => {
+  const q = quadroAtual; if (!q) return;
+  quadros.limparFoto(q); rotularQuadro();
+  try { await armazem.apagar(q.id); } catch { /* sem problema: só não estava guardada */ }
+});
+(async () => {       // recoloca as fotos guardadas neste aparelho
+  try {
+    for (const { id, blob } of await armazem.todas()) { const q = quadros.porId(id); if (q) quadros.colocarFoto(q, await createImageBitmap(blob)); }
+    rotularQuadro();
+  } catch (erro) { console.warn('fotos guardadas indisponíveis', erro); }
+})();
+
+// ---------- ver de perto (zoom suave no quadro) ----------
+let zoomQ = null, ultimoZoom = null, zoomK = 0;
+const olhar = new THREE.Vector3(), vPos = new THREE.Vector3(), vC = new THREE.Vector3(), vN = new THREE.Vector3();
+function visadaQuadro(q) {      // onde a câmera fica e quanto de zoom usar para a foto aparecer bem
+  const c = quadros.centro(q); vC.set(c.x, c.y, c.z);
+  let D = 2.0; raio.set(vC, vN.set(q.nx, 0, q.nz)); raio.far = D + 0.3;
+  const h = raio.intersectObjects(salao.paredes.children, true)[0]; if (h) D = Math.max(1.2, h.distance - 0.3);
+  vPos.set(c.x + q.nx * D, c.y + 0.05, c.z + q.nz * D);
+  const alturaVista = Math.max((q.H + 0.14) / 0.8, ((q.W + 0.14) / 0.88) / camera.aspect);
+  return { c: vC, pos: vPos, fov: Math.min(75, Math.max(28, 2 * Math.atan(alturaVista / 2 / D) * 180 / Math.PI)) };
+}
+function sairZoom() { if (!zoomQ) return; zoomQ = null; $('btnPerto').textContent = 'Ver de perto'; }
+$('btnPerto').addEventListener('click', () => {
+  if (zoomQ) sairZoom(); else if (quadroAtual) { zoomQ = ultimoZoom = quadroAtual; $('btnPerto').textContent = 'Voltar'; }
+});
 
 // ---------- laço do jogo ----------
 const relogio = new THREE.Clock();
@@ -129,11 +226,23 @@ const raio = new THREE.Raycaster();
 let zonaAtual = null, tZona = 0;
 const angDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 
+function acomodar(p, dt) {       // desliza até o assento e se vira para a frente dele
+  const k = 1 - Math.exp(-9 * dt), a = p.assento;
+  p.x += (a.x - p.x) * k; p.z += (a.z - p.z) * k; p.yaw += angDiff(p.yaw, a.yaw) * k;
+  p.grupo.position.set(p.x, 0, p.z); p.grupo.rotation.y = p.yaw;
+}
 function mover(p, dt) {
   let ix = (teclas.has('KeyD') || teclas.has('ArrowRight') ? 1 : 0) - (teclas.has('KeyA') || teclas.has('ArrowLeft') ? 1 : 0) + joy.x;
   let iy = (teclas.has('KeyW') || teclas.has('ArrowUp') ? 1 : 0) - (teclas.has('KeyS') || teclas.has('ArrowDown') ? 1 : 0) + joy.y;
   const m = Math.min(1, Math.hypot(ix, iy));
+  if (p.assento) {
+    if (m > 0.12) { levantar(p); rotularQuadro(); }
+    else {            // desliza até o assento e se vira para a frente dele
+      acomodar(p, dt); return;
+    }
+  }
   if (m > 0.12) {
+    sairZoom();
     const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw), rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw);
     let dx = fx * iy + rx * ix, dz = fz * iy + rz * ix; const n = Math.hypot(dx, dz); dx /= n; dz /= n;
     p.x += dx * VELOCIDADE * m * dt; p.z += dz * VELOCIDADE * m * dt;
@@ -154,7 +263,7 @@ function atualizarCamera(dt) {
   if (cima) {
     camera.position.lerp(desejada.set(0, 27, 7), 1 - Math.exp(-6 * dt)); camera.lookAt(0, 0, 0.5); camera.fov = 50; camera.updateProjectionMatrix(); return;
   }
-  const p = eu(); alvo.set(p.x, ALTURA_GATO * 0.72, p.z);
+  const p = eu(); alvo.set(p.x, ALTURA_GATO * 0.72 - 0.3 * p.gato.nivelSentado(), p.z);
   const poeDir = (pitch) => dir.set(Math.sin(cam.yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(cam.yaw) * Math.cos(pitch));
   poeDir(cam.pitch);
   let d = cam.dist;
@@ -165,8 +274,18 @@ function atualizarCamera(dt) {
     poeDir(Math.min(1.2, cam.pitch + (1 - d / cam.dist) * 0.55));
   }
   desejada.copy(alvo).addScaledVector(dir, d);
-  if (camera.fov !== 55) { camera.fov = 55; camera.updateProjectionMatrix(); }
-  camera.position.lerp(desejada, 1 - Math.exp(-14 * dt)); camera.lookAt(alvo);
+  // zoom suave sobre o quadro ("Ver de perto")
+  zoomK += ((zoomQ ? 1 : 0) - zoomK) * (1 - Math.exp(-5 * dt));
+  if (zoomK < 0.002) zoomK = 0;
+  olhar.copy(alvo); let fov = 55;
+  if (zoomK > 0) {
+    const v = visadaQuadro(zoomQ || ultimoZoom), k = zoomK * zoomK * (3 - 2 * zoomK);
+    desejada.lerp(v.pos, k); olhar.lerp(v.c, k); fov = 55 + (v.fov - 55) * k;
+  }
+  jogadores.forEach((j) => { j.grupo.visible = true; });
+  if (zoomK > 0.6) p.grupo.visible = false;          // o gato some enquanto você olha a foto de perto
+  if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  camera.position.lerp(desejada, 1 - Math.exp(-14 * dt)); camera.lookAt(olhar);
 }
 
 function atualizarZona(dt) {
@@ -178,8 +297,9 @@ function atualizarZona(dt) {
 function passo(dt) {
   dt = Math.min(dt, 0.1);
   mover(eu(), dt);
-  for (const j of jogadores) j.gato.atualizar(dt);
-  atualizarCamera(dt); atualizarZona(dt);
+  for (const j of jogadores) if (j !== eu() && j.assento) acomodar(j, dt);
+  for (const j of jogadores) { j.gato.atualizar(dt); j.grupo.position.y = j.altSent * j.gato.nivelSentado(); }
+  atualizarCamera(dt); atualizarZona(dt); atualizarQuadro();
 }
 renderer.setAnimationLoop(() => { passo(relogio.getDelta()); renderer.render(cena, camera); });
 
@@ -189,7 +309,7 @@ $('carregando').classList.add('fim');
 
 // gancho para testes automáticos
 window.museu = {
-  jogadores, cam, salao, THREE, camera,
+  jogadores, cam, salao, mobilia, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
   ativo: () => ativo,
   colocar(x, z, yaw) { const p = eu(); p.x = x; p.z = z; if (yaw != null) p.yaw = yaw; p.grupo.position.set(x, 0, z); p.grupo.rotation.y = p.yaw; camera.position.set(x + Math.sin(cam.yaw) * cam.dist, 2.4, z + Math.cos(cam.yaw) * cam.dist); },
   cima(on) { if (on !== cima) $('btnCima').click(); },
