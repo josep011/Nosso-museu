@@ -26,7 +26,11 @@
   .redondo { width: 56px; height: 56px; border-radius: 50%; font-size: 24px; padding: 0; display: grid; place-items: center; background: rgba(255,255,255,.82); color: #2a2830; border: none; box-shadow: 0 2px 12px rgba(0,0,0,.3); }
   #btnCima { font-size: 12px; padding: 6px 10px; }
   #painel { position: fixed; right: 12px; bottom: 100px; width: min(330px, calc(100vw - 24px)); max-height: 34vh; overflow: auto; padding: 12px; display: none; touch-action: pan-y; }
-  #painel.on { display: block; }
+  #painel.on, #casalPainel.on { display: block; }
+  #casalPainel { position: fixed; right: 12px; bottom: 170px; width: min(300px, calc(100vw - 24px)); padding: 12px; display: none; }
+  #casalPainel h3 { margin: 4px 4px 8px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--suave); }
+  #casalPainel .grade button { font-size: 15px; padding: 9px 14px; }
+  #btnCasal { color: #e0557f; }
   #painel h3 { margin: 6px 4px 8px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--suave); }
   .grade { display: flex; flex-wrap: wrap; gap: 6px; }
   .grade button { font-size: 13px; padding: 6px 10px; }
@@ -44,6 +48,29 @@
   #quadroUI small { font-size: 11px; color: var(--suave); }
   .navq { position: fixed; top: 42%; width: 52px; height: 52px; font-size: 34px; line-height: 1; padding: 0 0 4px; background: rgba(28,27,32,.55); color: #f4f1ea; border: 1px solid var(--borda); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   #qAnt { left: max(10px, env(safe-area-inset-left)); } #qProx { right: max(10px, env(safe-area-inset-right)); }
+  #onlineUI { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(340px, calc(100vw - 32px)); padding: 16px 18px; z-index: 5; text-align: center; display: flex; flex-direction: column; gap: 10px; }
+  #onlineUI[hidden] { display: none !important; }
+  #onlineUI h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  #onlineUI p { margin: 0; font-size: 14px; }
+  #onlineUI #onInicio, #onlineUI #onSala { display: flex; flex-direction: column; gap: 10px; }
+  #onlineUI .suave { color: var(--suave); font-size: 13px; } #onlineUI .mini { font-size: 11.5px; line-height: 1.4; }
+  #onlineUI .linha { display: flex; gap: 8px; justify-content: center; }
+  #onlineUI .forte { background: var(--destaque); color: #2a2830; border-color: transparent; font-weight: 600; padding: 10px 14px; }
+  #codigoSala { flex: 1; min-width: 0; font: inherit; font-size: 18px; letter-spacing: .18em; text-align: center; text-transform: uppercase; padding: 8px; border-radius: 10px; border: 1px solid var(--borda); background: rgba(255,255,255,.1); color: var(--texto); user-select: text; -webkit-user-select: text; }
+  #codigoGrande { font-size: 30px; font-weight: 700; letter-spacing: .2em; color: var(--destaque); user-select: text; -webkit-user-select: text; }
+  #btnOnline.on { color: #8fe3a7; border-color: rgba(143,227,167,.5); }
+  #escolha { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 35%, #3a3540 0%, #1b1a1f 70%); transition: opacity .6s; padding: 16px; }
+  #escolha.fim { opacity: 0; pointer-events: none; }
+  #escolha .caixa { text-align: center; width: min(560px, 100%); }
+  #escolha h1 { font-weight: 500; font-size: 26px; margin: 0 0 6px; letter-spacing: .02em; }
+  #escolha p { margin: 0 0 22px; color: var(--suave); font-size: 15px; }
+  #escolha .cartoes { display: flex; gap: 14px; justify-content: center; }
+  #escolha .cartao { flex: 1; max-width: 240px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 10px 14px; border-radius: 18px;
+    background: rgba(255,255,255,.07); border: 1px solid var(--borda); transition: transform .15s, background .15s; }
+  #escolha .cartao:active { transform: scale(.97); background: rgba(232,201,143,.18); }
+  @media (hover: hover) { #escolha .cartao:hover { background: rgba(232,201,143,.14); border-color: rgba(232,201,143,.5); } }
+  #escolha .cartao img { width: 100%; aspect-ratio: 300 / 340; object-fit: contain; border-radius: 12px; background: radial-gradient(circle at 50% 60%, rgba(232,201,143,.22), transparent 70%); }
+  #escolha .cartao b { font-size: 15px; font-weight: 600; }
   #aviso { position: fixed; left: 50%; top: max(110px, calc(env(safe-area-inset-top) + 98px)); transform: translateX(-50%); padding: 8px 14px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 86vw; text-align: center; }
   #aviso.on { opacity: 1; }
 </style>
@@ -53,19 +80,35 @@
 
 <div id="carregando"><div><h1>Nosso Museu</h1><div id="barra"><i></i></div></div></div>
 
+<div id="escolha" hidden>
+  <div class="caixa">
+    <h1>Nosso Museu</h1>
+    <p>Quem é você hoje?</p>
+    <div class="cartoes">
+      <button class="cartao" data-gato="0"><img alt=""><b>Gatinho de terno</b></button>
+      <button class="cartao" data-gato="1"><img alt=""><b>Gatinha médica</b></button>
+    </div>
+  </div>
+</div>
+
 <div id="hud">
-  <div id="quem" class="vidro"><span>Você é <b id="nomeGato">—</b></span><button id="trocar">Trocar gato</button></div>
+  <div id="quem" class="vidro"><span>Você é <b id="nomeGato">—</b></span><button id="btnOnline">Online</button></div>
 </div>
 <div id="zona" class="vidro"></div>
 
 <div id="joy"><small>Mover</small><div id="knob"></div></div>
 <div id="acoes">
   <button id="btnCima" class="vidro">Ver de cima</button>
+  <button id="btnCasal" class="redondo" aria-label="Carinhos" hidden>❤</button>
   <button id="btnEmocoes" class="redondo" aria-label="Emoções e gestos">☺</button>
 </div>
 <div id="painel" class="vidro">
   <h3>Como estou</h3><div class="grade" id="gradeHumores"></div>
   <h3>Gestos</h3><div class="grade" id="gradeGestos"></div>
+</div>
+<div id="casalPainel" class="vidro">
+  <h3>Carinho entre vocês</h3>
+  <div class="grade"><button id="btnBeijo">Beijo</button><button id="btnAbraco">Abraço</button><button id="btnCarinho">Carinho</button></div>
 </div>
 <div id="dica">WASD ou setas para andar · arraste para girar a câmera</div>
 
@@ -75,6 +118,23 @@
   <button id="btnFoto">Adicionar foto</button>
   <button id="btnRemover" hidden>Remover foto</button>
   <small id="notaFoto">A foto fica só neste aparelho.</small>
+</div>
+<div id="onlineUI" class="vidro" hidden>
+  <h2>Jogar juntos</h2>
+  <div id="onInicio">
+    <p>Cada um no seu celular, cada um com o seu gatinho.</p>
+    <button id="btnCriarSala" class="forte">Criar sala</button>
+    <p class="suave">ou entre na sala dela:</p>
+    <div class="linha"><input id="codigoSala" maxlength="8" placeholder="CÓDIGO" autocapitalize="characters" autocomplete="off" spellcheck="false"><button id="btnEntrarSala">Entrar</button></div>
+  </div>
+  <div id="onSala" hidden>
+    <p class="suave">Código da sala</p>
+    <div id="codigoGrande"></div>
+    <button id="btnConvite" class="forte">Enviar convite</button>
+    <p id="onEstado">Esperando ela entrar…</p>
+  </div>
+  <p class="suave mini">Funciona melhor com os dois no Wi-Fi. Só a posição, os gestos e os carinhos dos gatinhos passam entre os celulares; as fotos ficam em cada aparelho.</p>
+  <div class="linha"><button id="btnSairOnline" hidden>Sair do online</button><button id="btnFecharOnline">Fechar</button></div>
 </div>
 <input type="file" id="arqFoto" accept="image/*" hidden>
 <button id="qAnt" class="redondo navq" aria-label="Quadro anterior" hidden>‹</button>

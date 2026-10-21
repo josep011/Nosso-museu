@@ -28,7 +28,7 @@ class Montagem {
 
 const TERRA = 0x3b2a20, VASOS = { terracota: 0xc47b5a, branco: 0xeee8da, rosa: 0xd7a79d, cinza: 0x9b9a96, azul: 0x8ba0ad };
 const verde = (R) => _c.setHSL(0.24 + R() * 0.1, 0.42 + R() * 0.16, 0.25 + R() * 0.15).getHex();
-function vaso(m, cor, r, h) { m.add(VASO, cor, [0, h / 2, 0], [0, 0, 0], [r, h, r]); m.add(CYL, TERRA, [0, h - 0.012, 0], [0, 0, 0], [r * 0.93, 0.024, r * 0.93]); }
+function vaso(m, cor, r, h) { m.add(VASO, cor, [0, h / 2, 0], [0, 0, 0], [r, h, r]); m.add(CYL, TERRA, [0, h + 0.006, 0], [0, 0, 0], [r * 0.93, 0.024, r * 0.93]); }   // terra um pouco acima da boca do vaso (evita piscar)
 function folha(m, base, az, inclina, comp, larg, cor, giro) {
   const d = new THREE.Vector3(Math.sin(inclina) * Math.cos(az), Math.cos(inclina), Math.sin(inclina) * Math.sin(az));
   const c = new THREE.Vector3(...base).addScaledVector(d, comp * 0.5 + 0.03);

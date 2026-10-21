@@ -114,11 +114,11 @@ export function construirSalao(cena) {
     caixa(c - JL / 2, J1, z0 - T, c + JL / 2, h, z0, matParede);
     cur = c + JL / 2;
     // moldura, divisões e peitoril
-    const a = 0.07, zf0 = z0 - T - 0.02, zf1 = z0 + 0.02;
-    caixa(c - JL / 2 - a, J0 - a, zf0, c + JL / 2 + a, J0, zf1, matBranco);
-    caixa(c - JL / 2 - a, J1, zf0, c + JL / 2 + a, J1 + a, zf1, matBranco);
-    caixa(c - JL / 2 - a, J0, zf0, c - JL / 2, J1, zf1, matBranco);
-    caixa(c + JL / 2, J0, zf0, c + JL / 2 + a, J1, zf1, matBranco);
+    const a = 0.07, E = 0.012, zf0 = z0 - T - 0.02, zf1 = z0 + 0.02;
+    caixa(c - JL / 2 - a, J0 - a, zf0, c + JL / 2 + a, J0 + E, zf1, matBranco);
+    caixa(c - JL / 2 - a, J1 - E, zf0, c + JL / 2 + a, J1 + a, zf1, matBranco);
+    caixa(c - JL / 2 - a, J0, zf0, c - JL / 2 + E, J1, zf1, matBranco);
+    caixa(c + JL / 2 - E, J0, zf0, c + JL / 2 + a, J1, zf1, matBranco);
     caixa(c - 0.03, J0, zf0 + 0.08, c + 0.03, J1, zf1 - 0.08, matBranco);
     caixa(c - JL / 2, (J0 + J1) / 2 - 0.03, zf0 + 0.08, c + JL / 2, (J0 + J1) / 2 + 0.03, zf1 - 0.08, matBranco);
     caixa(c - JL / 2 - 0.15, J0 - 0.01, z0 - 0.05, c + JL / 2 + 0.15, J0 + 0.05, z0 + 0.3, matBranco);

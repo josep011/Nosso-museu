@@ -158,6 +158,53 @@ export function criarGato(gltf, { humorInicial = 'normal' } = {}) {
       return { y: 0.0009 * e, tr: [0.1 * e, 0, 0], cab: [0.12 * e, 0, (0.14 + 0.03 * w) * e],
         bE: [-1.05 * e, 0, 0.3 * e], bD: [-1.05 * e, 0, -0.3 * e], aE: [-0.75 * e, 0, 0.35 * e], aD: [-0.75 * e, 0, -0.35 * e],
         pD: [0.22 * e, 0, 0], cD: [(1.25 + 0.12 * w) * e, 0, 0], pE: [-0.05 * e, 0, 0], oE: [0, 0, 0.12 * e], oD: [0, 0, -0.12 * e] }; } },
+
+    // ---------- carinhos de casal: "_ele" = feito pelo gatinho de terno, "_ela" = feito pela gatinha ----------
+    // ele: firme e carinhoso (segura, inclina, abraça e levanta). ela: fofa (pontinha dos pés, pezinho para trás, patinhas juntas).
+    beijo_ele: { dur: 3.0, f: (p, t) => { const e = env(p, 0.18), d = Math.sin(Math.PI * Math.min(1, Math.max(0, (p - 0.25) / 0.5)));
+      return { tr: [(0.12 + 0.08 * d) * e, 0, 0], cab: [(0.1 + 0.06 * d) * e, 0, 0.2 * e],
+        bE: [-1.25 * e, 0, 0.3 * e], bD: [-1.25 * e, 0, -0.3 * e], aE: [-0.55 * e, 0, 0.25 * e], aD: [-0.55 * e, 0, -0.25 * e],
+        pE: [-0.18 * e, 0, 0], cE: [0.2 * e, 0, 0], pD: [0.08 * e, 0, 0] }; } },
+    receber_beijo_ela: { dur: 3.0, f: (p, t) => { const e = env(p, 0.18), w = Math.sin(t * 4);
+      return { y: 0.0016 * e, tr: [0.04 * e, 0, 0], cab: [-0.08 * e, 0, (-0.16 + 0.03 * w) * e], oE: [0, 0, 0.18 * e], oD: [0, 0, -0.18 * e],
+        bE: [-0.9 * e, 0, 0.55 * e], bD: [-0.9 * e, 0, -0.55 * e], aE: [-1.45 * e, 0, 0.35 * e], aD: [-1.45 * e, 0, -0.35 * e],
+        pD: [0.3 * e, 0, 0], cD: [(1.3 + 0.15 * w) * e, 0, 0] }; } },
+    beijo_ela: { dur: 3.0, f: (p, t) => { const e = env(p, 0.18), w = Math.sin(t * 5);
+      return { y: 0.0022 * e, tr: [0.14 * e, 0, 0], cab: [0.06 * e, 0, (0.18 + 0.03 * w) * e], oE: [0, 0, 0.12 * e], oD: [0, 0, -0.12 * e],
+        bE: [-1.15 * e, 0, 0.4 * e], bD: [-1.15 * e, 0, -0.4 * e], aE: [-0.85 * e, 0, 0.4 * e], aD: [-0.85 * e, 0, -0.4 * e],
+        pD: [0.28 * e, 0, 0], cD: [(1.35 + 0.15 * w) * e, 0, 0], pE: [-0.05 * e, 0, 0] }; } },
+    receber_beijo_ele: { dur: 3.0, f: (p) => { const e = env(p, 0.2);
+      return { tr: [0.1 * e, 0, 0], cab: [0.16 * e, 0, -0.1 * e], bE: [-0.85 * e, 0, 0.5 * e], bD: [-0.85 * e, 0, -0.5 * e],
+        aE: [-0.95 * e, 0, 0.45 * e], aD: [-0.95 * e, 0, -0.45 * e] }; } },
+    abraco_ele: { dur: 3.6, f: (p, t) => { const e = env(p, 0.12), ab = p < 0.22 ? sm(p / 0.22) : 1, fe = p < 0.22 ? 0 : sm((p - 0.22) / 0.12), w = Math.sin(t * 2.4) * fe;
+      return { tr: [(0.06 - 0.06 * fe) * e, 0, 0.07 * w * e], cab: [0.12 * fe * e, 0, (0.22 * fe + 0.05 * w) * e],
+        bE: [-1.35 * fe * e, 0, (-1.2 * ab * (1 - fe) + 0.65 * fe) * e], bD: [-1.35 * fe * e, 0, (1.2 * ab * (1 - fe) - 0.65 * fe) * e],
+        aE: [-0.9 * fe * e, 0, 0.7 * fe * e], aD: [-0.9 * fe * e, 0, -0.7 * fe * e], pE: [-0.1 * e, 0, 0], pD: [0.1 * e, 0, 0] }; } },
+    receber_abraco_ela: { dur: 3.6, f: (p, t) => { const e = env(p, 0.15), w = Math.sin(t * 2.4), k = sm((p - 0.15) / 0.15);
+      return { y: 0.0012 * e, cab: [-0.05 * e, 0, (0.24 + 0.05 * w) * k * e], tr: [0, 0, -0.06 * w * k * e], oE: [0, 0, 0.2 * e], oD: [0, 0, -0.2 * e],
+        bE: [-1.8 * k * e, 0, 0.55 * k * e], bD: [-1.8 * k * e, 0, -0.55 * k * e], aE: [-0.8 * k * e, 0, 0.6 * k * e], aD: [-0.8 * k * e, 0, -0.6 * k * e],
+        pD: [0.3 * k * e, 0, 0], cD: [(1.35 + 0.2 * w) * k * e, 0, 0] }; } },
+    abraco_ela: { dur: 3.6, f: (p, t) => { const hop = p < 0.2 ? Math.sin(Math.PI * p / 0.2) : 0, k = sm(p / 0.16) * env(p, 0.12), w = Math.sin(t * 3);
+      return { y: 0.01 * hop + 0.002 * k, tr: [0.08 * k, 0, 0.05 * w * k], cab: [0, 0, (0.22 + 0.12 * w) * k], oE: [0, 0, 0.2 * k], oD: [0, 0, -0.2 * k],
+        bE: [-2.0 * k, 0, 0.5 * k], bD: [-2.0 * k, 0, -0.5 * k], aE: [-0.9 * k, 0, 0.6 * k], aD: [-0.9 * k, 0, -0.6 * k],
+        pD: [0.35 * k, 0, 0], cD: [(1.4 + 0.2 * w) * k, 0, 0], pE: [-0.2 * hop, 0, 0], cE: [0.4 * hop, 0, 0] }; } },
+    receber_abraco_ele: { dur: 3.6, f: (p, t) => { const e = env(p, 0.15), k = sm((p - 0.12) / 0.15), w = Math.sin(t * 3);
+      return { tr: [0.06 * k * e, 0, -0.05 * w * k * e], cab: [0.14 * k * e, 0, -0.18 * k * e], bE: [-1.2 * k * e, 0, 0.7 * k * e], bD: [-1.2 * k * e, 0, -0.7 * k * e],
+        aE: [-1.0 * k * e, 0, 0.6 * k * e], aD: [-1.0 * k * e, 0, -0.6 * k * e] }; } },
+    carinho_ele: { dur: 3.4, f: (p, t) => { const e = env(p, 0.15), pat = 0.5 + 0.5 * Math.sin(t * 7);
+      return { tr: [0.08 * e, 0, 0], cab: [0.18 * e, 0, 0.14 * e], bD: [-2.25 * e, 0, -0.25 * e], aD: [(-0.35 - 0.45 * pat) * e, 0, -0.1 * e],
+        bE: [0.45 * e, 0, 0.08 * e], aE: [-0.6 * e, 0, 0.2 * e] }; } },
+    receber_carinho_ela: { dur: 3.4, f: (p, t) => { const e = env(p, 0.15), w = Math.sin(t * 3.2);
+      return { y: 0.0008 * e, tr: [0, 0.1 * w * e, 0], cab: [0.16 * e, 0.08 * w * e, (0.22 + 0.06 * w) * e], oE: [0, 0, 0.32 * e], oD: [0, 0, -0.32 * e],
+        bE: [-0.85 * e, 0, 0.55 * e], bD: [-0.85 * e, 0, -0.55 * e], aE: [-1.5 * e, 0, 0.3 * e], aD: [-1.5 * e, 0, -0.3 * e],
+        pD: [0.2 * e, 0, 0], cD: [(1.1 + 0.2 * w) * e, 0, 0] }; } },
+    carinho_ela: { dur: 3.4, f: (p, t) => { const e = env(p, 0.15), a = Math.sin(t * 5), b = Math.sin(t * 5 + Math.PI);
+      return { y: 0.002 * e, tr: [0.1 * e, 0, 0], cab: [-0.06 * e, 0, -0.2 * e], oE: [0, 0, 0.15 * e], oD: [0, 0, -0.15 * e],
+        bE: [-1.8 * e, 0, (0.4 + 0.15 * a) * e], bD: [-1.8 * e, 0, -(0.4 + 0.15 * b) * e], aE: [(-0.6 - 0.3 * a) * e, 0, 0.3 * e], aD: [(-0.6 - 0.3 * b) * e, 0, -0.3 * e],
+        pD: [0.3 * e, 0, 0], cD: [(1.35 + 0.15 * a) * e, 0, 0] }; } },
+    receber_carinho_ele: { dur: 3.4, f: (p, t) => { const e = env(p, 0.15);
+      return { tr: [0.12 * e, 0, 0], cab: [0.2 * e, 0, -0.14 * e + 0.03 * Math.sin(t * 2.5) * e], bD: [-2.4 * e, 0, -0.6 * e], aD: [-1.6 * e, 0, 0],
+        bE: [-0.2 * e, 0, 0.1 * e] }; } },
   };
   let A = null;
   const base = { y: gata.position.y, ry: gata.rotation.y };
@@ -236,6 +283,7 @@ export function criarGato(gltf, { humorInicial = 'normal' } = {}) {
     atualizar: quadro,          // atualizar(dt em segundos)
     humor, expressao, acao, parar, sentar,
     nivelSentado: () => sentK,
+    tem: (n) => !!rosto[n],
     acoes: Object.keys(ACOES),
     humores: Object.keys(HUMORES),
   };

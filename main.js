@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { criarGato } from './gato.js';
-import { construirSalao, ZONAS, SPAWN } from './salao.js';
+import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js';
+import { criarOnline, codigoValido } from './online.js';
 import { criarQuadros } from './quadros.js';
 import { construirMobilia } from './mobilia.js';
 import { construirDecoracao } from './decoracao.js';
@@ -114,7 +115,7 @@ salao.colliders.push({ x0: 1.8, z0: 6.8, x1: 2.2, z1: 7.2 });      // funcionár
 let ativo = 0;
 const eu = () => jogadores[ativo];
 
-// ---------- interface: trocar de gato, emoções e gestos ----------
+// ---------- interface: emoções e gestos ----------
 const HUMORES = { normal: 'Normal', feliz: 'Feliz', falando: 'Falando', triste: 'Triste', chorando: 'Chorando', brava: 'Brava', irritada: 'Irritada', surpresa: 'Surpresa', apaixonada: 'Apaixonada', tonta: 'Tonta', sono: 'Com sono', dormindo: 'Dormindo', marota: 'Marota', envergonhada: 'Envergonhada' };
 const GESTOS = { pular: 'Pular', pulinhos: 'Pulinhos', comemorar: 'Comemorar', dancar: 'Dançar', palmas: 'Palmas', espreguicar: 'Espreguiçar', marchar: 'Marchar', girar: 'Girar', reverencia: 'Reverência', pensar: 'Pensar', olhar: 'Olhar ao redor', espirro: 'Espirrar', susto: 'Susto', timida: 'Tímida', sacudir: 'Sacudir', balancar: 'Balançar', acenar: 'Acenar', beijo: 'Beijo' };
 function fazerHumor(j, nome) { j.gato.humor(nome); }
@@ -126,11 +127,10 @@ function fazerGesto(j, nome) {
   j.gato.acao(nome);
 }
 const botao = (txt, fn) => { const b = document.createElement('button'); b.textContent = txt; b.addEventListener('click', fn); return b; };
-for (const [k, v] of Object.entries(HUMORES)) $('gradeHumores').append(botao(v, () => fazerHumor(eu(), k)));
-for (const [k, v] of Object.entries(GESTOS)) $('gradeGestos').append(botao(v, () => fazerGesto(eu(), k)));
-$('btnEmocoes').addEventListener('click', () => $('painel').classList.toggle('on'));
+for (const [k, v] of Object.entries(HUMORES)) $('gradeHumores').append(botao(v, () => { fazerHumor(eu(), k); online.enviar({ t: 'h', n: k }); }));
+for (const [k, v] of Object.entries(GESTOS)) $('gradeGestos').append(botao(v, () => { fazerGesto(eu(), k); online.enviar({ t: 'g', n: k }); }));
+$('btnEmocoes').addEventListener('click', () => { $('casalPainel').classList.remove('on'); $('painel').classList.toggle('on'); });
 function atualizarNome() { $('nomeGato').textContent = eu().nome; }
-$('trocar').addEventListener('click', () => { sairZoom(); eu().gato.parar(0.1); eu().andando = false; ativo = (ativo + 1) % jogadores.length; atualizarNome(); });
 atualizarNome();
 let cima = false;
 $('btnCima').addEventListener('click', () => { cima = !cima; salao.esconderTeto(cima); $('btnCima').textContent = cima ? 'Voltar ao gato' : 'Ver de cima'; });
@@ -148,14 +148,14 @@ function acharAssento(p) {
 function sentar(p, a) {
   if (p.assento || !a || (a.ocupado && a.ocupado !== p)) return;
   if (p.andando) { p.gato.parar(0.1); p.andando = false; }
-  p.assento = a; a.ocupado = p; p.altSent = a.alt + 0.03 - p.hipAlt; p.gato.sentar(true, a.esticado); sairZoom();
+  p.assento = a; a.ocupado = p; p.altSent = a.alt + 0.03 - p.hipAlt; p.gato.sentar(true, a.esticado); if (p === eu()) sairZoom();
 }
 function levantar(p) {
   const a = p.assento; if (!a) return;
   p.gato.sentar(false); p.assento = null; a.ocupado = null;
   p.x = a.x + Math.sin(a.yaw) * 0.6; p.z = a.z + Math.cos(a.yaw) * 0.6; empurrar(p);   // levanta para a frente do assento
 }
-function alternarSentar() { const p = eu(); if (p.assento) levantar(p); else sentar(p, acharAssento(p)); rotularQuadro(); }
+function alternarSentar() { if (casal) return; const p = eu(); if (p.assento) levantar(p); else sentar(p, acharAssento(p)); rotularQuadro(); }
 $('btnSentar').addEventListener('click', alternarSentar);
 addEventListener('keydown', (e) => { if (e.code === 'KeyE' && !e.repeat) alternarSentar(); });
 
@@ -246,6 +246,164 @@ $('btnPerto').addEventListener('click', () => {
   if (zoomQ) sairZoom(); else if (quadroAtual) { zoomQ = ultimoZoom = quadroAtual; histZoom = []; $('btnPerto').textContent = 'Voltar'; navUI(); }
 });
 
+// ---------- carinhos de casal: beijo, abraço e carinho ----------
+// A animação muda conforme QUEM começa: o gatinho de terno (jeito firme e carinhoso) ou a gatinha (jeito fofo).
+const CASAL = { beijo: { dist: 0.66 }, abraco: { dist: 0.6 }, carinho: { dist: 0.68 } };
+let casal = null;
+const outro = () => jogadores[(ativo + 1) % jogadores.length];
+const estilo = (j) => (j.terno ? 'ele' : 'ela');
+function podeCasal() { const a = eu(), b = outro(); return !casal && !cima && !a.assento && !b.assento && Math.hypot(a.x - b.x, a.z - b.z) < 2.2; }
+function rostoCasal(j, papel, tipo) {     // papel: 'faz' ou 'recebe'
+  const beijoBoca = j.gato.tem('boca_beijo') ? 'beijo' : 'sorriso';
+  if (tipo === 'beijo') { if (papel === 'faz') j.gato.expressao('felizes', beijoBoca, ['bochechas']); else j.gato.expressao('piscando', 'sorriso', ['bochechas']); }
+  else if (tipo === 'abraco') j.gato.expressao('felizes', j.terno ? 'sorriso' : 'aberta', ['bochechas']);
+  else if (papel === 'faz') j.gato.expressao(j.terno ? 'abertos' : 'felizes', 'sorriso', ['bochechas']);
+  else j.gato.expressao('felizes', j.terno ? 'sorriso' : 'aberta', ['bochechas']);
+}
+function iniciarCasal(tipo, remoto = false) {      // remoto = começou no celular do outro
+  if (!CASAL[tipo]) return;
+  if (remoto) { if (casal) return; for (const j of jogadores) if (j.assento) levantar(j); }
+  else { if (!podeCasal()) return; online.enviar({ t: 'c', n: tipo }); }
+  const a = remoto ? outro() : eu(), b = remoto ? eu() : outro(); sairZoom(); $('casalPainel').classList.remove('on');
+  for (const j of [a, b]) { j.gato.parar(0.1); j.andando = false; clearTimeout(j.tBeijo); clearTimeout(j.tHumor); }
+  let dx = b.x - a.x, dz = b.z - a.z; const n = Math.hypot(dx, dz) || 1; dx /= n; dz /= n;
+  const mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2, h = CASAL[tipo].dist / 2;
+  casal = { tipo, a, b, t: 0, fase: 'chegar', dx, dz,
+    pa: { x: mx - dx * h, z: mz - dz * h, yaw: Math.atan2(dx, dz) }, pb: { x: mx + dx * h, z: mz + dz * h, yaw: Math.atan2(-dx, -dz) } };
+  a.gato.acao('andar'); b.gato.acao('andar');
+}
+function atualizarCasal(dt) {
+  const c = casal; if (!c) return; c.t += dt;
+  const k = 1 - Math.exp(-7 * dt);
+  const levar = (j, alvo) => { j.x += (alvo.x - j.x) * k; j.z += (alvo.z - j.z) * k; j.yaw += angDiff(j.yaw, alvo.yaw) * k; j.grupo.position.set(j.x, 0, j.z); j.grupo.rotation.y = j.yaw; };
+  levar(c.a, c.pa); levar(c.b, c.pb);
+  if (c.fase === 'chegar' && c.t > 0.55) {
+    c.fase = 'agir'; c.t = 0;
+    c.dur = Math.max(c.a.gato.acao(`${c.tipo}_${estilo(c.a)}`), c.b.gato.acao(`receber_${c.tipo}_${estilo(c.b)}`));
+    rostoCasal(c.a, 'faz', c.tipo); rostoCasal(c.b, 'recebe', c.tipo);
+  } else if (c.fase === 'agir') {
+    if ((c.coracao = (c.coracao || 0) - dt) <= 0) { c.coracao = 0.32; soltarCoracao((c.a.x + c.b.x) / 2, (c.a.z + c.b.z) / 2); }
+    if (c.t >= c.dur) {          // termina: dão um passinho para trás, apaixonados
+      c.fase = 'sair'; c.t = 0; const h = 0.42;
+      c.pa = { ...c.pa, x: c.pa.x - c.dx * 0.17, z: c.pa.z - c.dz * 0.17 }; c.pb = { ...c.pb, x: c.pb.x + c.dx * 0.17, z: c.pb.z + c.dz * 0.17 }; void h;
+      for (const j of [c.a, c.b]) { j.gato.humor('apaixonada'); j.tHumor = setTimeout(() => j.gato.humor('normal'), 2600); }
+    }
+  } else if (c.fase === 'sair' && c.t > 0.5) casal = null;
+}
+// ele levanta a gatinha um pouquinho no abraço
+function alturaCasal(j) {
+  const c = casal; if (!c || c.fase !== 'agir' || c.tipo !== 'abraco' || !c.a.terno || j !== c.b) return 0;
+  const p = c.t / c.dur; return 0.07 * Math.sin(Math.PI * Math.min(1, Math.max(0, (p - 0.3) / 0.5)));
+}
+// coraçõezinhos que sobem e somem
+const texCoracao = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d');
+  g.fillStyle = '#ff7aa2'; g.beginPath(); g.moveTo(32, 56); g.bezierCurveTo(2, 34, 8, 4, 32, 20); g.bezierCurveTo(56, 4, 62, 34, 32, 56); g.fill();
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const coracoes = [];
+function soltarCoracao(x, z) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: texCoracao, transparent: true, depthWrite: false }));
+  s.position.set(x + (Math.random() - 0.5) * 0.4, 1.25 + Math.random() * 0.15, z + (Math.random() - 0.5) * 0.4); s.scale.setScalar(0.16);
+  s.userData.v = 0; cena.add(s); coracoes.push(s);
+}
+function atualizarCoracoes(dt) {
+  for (let i = coracoes.length - 1; i >= 0; i--) {
+    const s = coracoes[i]; s.userData.v += dt; const v = s.userData.v;
+    s.position.y += 0.45 * dt; s.position.x += Math.sin(v * 4 + i) * 0.1 * dt; s.material.opacity = Math.max(0, 1 - v / 1.7); s.scale.setScalar(0.16 + v * 0.05);
+    if (v > 1.7) { cena.remove(s); s.material.dispose(); coracoes.splice(i, 1); }
+  }
+}
+for (const [id, tipo] of [['btnBeijo', 'beijo'], ['btnAbraco', 'abraco'], ['btnCarinho', 'carinho']]) $(id).addEventListener('click', () => iniciarCasal(tipo));
+$('btnCasal').addEventListener('click', () => { $('painel').classList.remove('on'); $('casalPainel').classList.toggle('on'); });
+addEventListener('keydown', (e) => { if (e.repeat) return; const t = { KeyB: 'beijo', KeyH: 'abraco', KeyC: 'carinho' }[e.code]; if (t) iniciarCasal(t); });
+let podiaCasal = null;
+function atualizarBotaoCasal() { const p = podeCasal(); if (p !== podiaCasal) { podiaCasal = p; $('btnCasal').hidden = !p; if (!p) $('casalPainel').classList.remove('on'); } }
+
+// ---------- online: cada um no seu celular ----------
+let alvoRemoto = null, tEnvio = 0, eventosSeg = 0, tEventos = 0, tConectando = 0;
+const num = (v, a, b) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : null);
+const tem = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
+function definirGatos(i) {
+  if (i === ativo) return;
+  sairZoom(); eu().gato.parar(0.1); eu().andando = false; ativo = i; atualizarNome();
+  const p = eu(); cam.yaw = p.yaw - Math.PI; camera.position.set(p.x + Math.sin(cam.yaw) * 4, 2.4, p.z + Math.cos(cam.yaw) * 4);
+}
+function receber(m) {          // tudo que chega do outro celular é conferido antes de usar
+  if (m.t === 'e') {
+    const x = num(m.x, SALAO.x0, SALAO.x1), z = num(m.z, SALAO.z0, SALAO.z1), yaw = num(m.y, -50, 50);
+    if (x == null || z == null || yaw == null) return;
+    const s = typeof m.s === 'string' ? (mobilia.assentos.find((a) => a.id === m.s) || null) : null;
+    alvoRemoto = { x, z, yaw, andando: m.a === 1, assento: s }; return;
+  }
+  if (++eventosSeg > 8) return;                       // no máximo 8 gestos/emoções por segundo
+  if (m.t === 'h' && tem(HUMORES, m.n)) fazerHumor(outro(), m.n);
+  else if (m.t === 'g' && tem(GESTOS, m.n)) fazerGesto(outro(), m.n);
+  else if (m.t === 'c' && tem(CASAL, m.n)) iniciarCasal(m.n, true);
+  else if (m.t === 'ola' && online.papel() === 'convidado' && (m.gato === 0 || m.gato === 1)) {
+    const meu = 1 - m.gato, mudou = meu !== ativo || escolhendo;
+    fecharEscolha(meu);
+    if (mudou) aviso(`${jogadores[m.gato].nome} já está com quem criou a sala — você é ${jogadores[meu].nome}.`);
+  }
+}
+function atualizarRemoto(dt) {
+  if (!online.conectado() || !alvoRemoto || casal) return;
+  const r = outro(), a = alvoRemoto;
+  if (a.assento) {
+    if (r.assento !== a.assento) { if (r.assento) levantar(r); if (!a.assento.ocupado) sentar(r, a.assento); }
+    if (r.assento) return;                           // quem está sentado se acomoda sozinho no passo
+  } else if (r.assento) levantar(r);
+  const k = 1 - Math.exp(-10 * dt), d = Math.hypot(a.x - r.x, a.z - r.z);
+  if (d > 3) { r.x = a.x; r.z = a.z; } else { r.x += (a.x - r.x) * k; r.z += (a.z - r.z) * k; }
+  r.yaw += angDiff(r.yaw, a.yaw) * k;
+  if (a.andando && !r.andando) { r.gato.acao('andar'); r.andando = true; } else if (!a.andando && r.andando) { r.gato.parar(0.25); r.andando = false; }
+  r.grupo.position.set(r.x, 0, r.z); r.grupo.rotation.y = r.yaw;
+}
+function enviarEstado(dt) {
+  tEventos += dt; if (tEventos > 1) { tEventos = 0; eventosSeg = 0; }
+  if (!online.conectado() || (tEnvio -= dt) > 0) return;
+  tEnvio = 1 / 15; const p = eu();
+  online.enviar({ t: 'e', x: +p.x.toFixed(3), z: +p.z.toFixed(3), y: +p.yaw.toFixed(3), a: p.andando ? 1 : 0, s: p.assento ? p.assento.id : null });
+}
+const TEXTO_ON = { esperando: 'Esperando ela entrar…', procurando: 'Procurando a sala…', conectando: 'Conectando os celulares…',
+  conectado: 'Conectados!', 'reconectando-recados': 'Tentando achar a sala de novo…', 'erro-rede': 'Sem internet para achar a sala.',
+  falhou: 'Não deu para conectar direto. Tentem os dois no mesmo Wi-Fi e criem a sala de novo.', desconectado: 'A conexão caiu.' };
+const online = criarOnline({
+  aoAbrir: (papel) => {
+    clearTimeout(tConectando); $('onlineUI').hidden = true; alvoRemoto = null; atualizarOnlineUI();
+    if (papel === 'anfitriao') online.enviar({ t: 'ola', gato: ativo });
+    aviso('Conectados! Agora cada um anda com o seu gatinho.');
+  },
+  aoMensagem: receber,
+  aoFechar: () => { alvoRemoto = null; const r = outro(); if (r.andando) { r.gato.parar(0.25); r.andando = false; } aviso('A conexão caiu. Dá para criar a sala de novo.'); atualizarOnlineUI(); },
+  aoStatus: (st) => { $('onEstado').textContent = TEXTO_ON[st] || ''; if (st === 'falhou') aviso(TEXTO_ON.falhou); },
+});
+function atualizarOnlineUI() {
+  const c = online.conectado();
+  $('btnOnline').textContent = c ? 'Online ●' : 'Online'; $('btnOnline').classList.toggle('on', c);
+  $('btnSairOnline').hidden = !online.ativo();
+}
+function mostrarSala(codigo) { $('onInicio').hidden = true; $('onSala').hidden = false; $('codigoGrande').textContent = codigo; }
+function esperarConexao() { clearTimeout(tConectando); tConectando = setTimeout(() => { if (!online.conectado()) $('onEstado').textContent = 'Está demorando… Confiram se os dois estão com internet (de preferência no mesmo Wi-Fi).'; }, 30000); }
+$('btnOnline').addEventListener('click', () => { const on = online.ativo(); $('onInicio').hidden = on; $('onSala').hidden = !on; $('onlineUI').hidden = false; atualizarOnlineUI(); });
+$('btnFecharOnline').addEventListener('click', () => { $('onlineUI').hidden = true; });
+$('btnCriarSala').addEventListener('click', () => { const c = online.criarSala(); mostrarSala(c); $('btnConvite').hidden = false; esperarConexao(); atualizarOnlineUI(); });
+function entrarSala(c) {
+  c = (c || '').toUpperCase().replace(/[^A-Z2-9]/g, '');
+  if (!codigoValido(c)) { aviso('O código tem 8 letras/números.'); return; }
+  online.entrar(c); mostrarSala(c); $('btnConvite').hidden = true; esperarConexao(); atualizarOnlineUI();
+}
+$('btnEntrarSala').addEventListener('click', () => entrarSala($('codigoSala').value));
+for (const ev of ['keydown', 'keyup']) $('codigoSala').addEventListener(ev, (e) => { e.stopPropagation(); if (ev === 'keydown' && e.key === 'Enter') entrarSala($('codigoSala').value); });
+$('btnConvite').addEventListener('click', async () => {
+  const url = `${location.origin}${location.pathname}?sala=${online.codigo()}`;
+  try { if (navigator.share) { await navigator.share({ title: 'Nosso Museu', text: 'Vem passear comigo no nosso museu 💕', url }); return; } } catch { /* cancelou */ return; }
+  try { await navigator.clipboard.writeText(url); aviso('Link do convite copiado!'); } catch { aviso(url); }
+});
+$('btnSairOnline').addEventListener('click', () => { online.sair(); clearTimeout(tConectando); alvoRemoto = null; $('onInicio').hidden = false; $('onSala').hidden = true; atualizarOnlineUI(); });
+{   // entrou pelo link do convite (?sala=CODIGO)
+  const q = new URLSearchParams(location.search).get('sala');
+  if (q) { const limpo = new URL(location.href); limpo.searchParams.delete('sala'); history.replaceState(null, '', limpo); $('onlineUI').hidden = false; entrarSala(q); }
+}
+
 // ---------- laço do jogo ----------
 const relogio = new THREE.Clock();
 const alvo = new THREE.Vector3(), desejada = new THREE.Vector3(), dir = new THREE.Vector3();
@@ -259,6 +417,7 @@ function acomodar(p, dt) {       // desliza até o assento e se vira para a fren
   p.grupo.position.set(p.x, 0, p.z); p.grupo.rotation.y = p.yaw;
 }
 function mover(p, dt) {
+  if (casal || escolhendo) return;
   let ix = (teclas.has('KeyD') || teclas.has('ArrowRight') ? 1 : 0) - (teclas.has('KeyA') || teclas.has('ArrowLeft') ? 1 : 0) + joy.x;
   let iy = (teclas.has('KeyW') || teclas.has('ArrowUp') ? 1 : 0) - (teclas.has('KeyS') || teclas.has('ArrowDown') ? 1 : 0) + joy.y;
   const m = Math.min(1, Math.hypot(ix, iy));
@@ -324,24 +483,57 @@ function atualizarZona(dt) {
 function passo(dt) {
   dt = Math.min(dt, 0.1);
   mover(eu(), dt);
+  atualizarRemoto(dt);
+  atualizarCasal(dt);
   recep.atualizar(dt, jogadores);
   for (const j of jogadores) if (j !== eu() && j.assento) acomodar(j, dt);
-  for (const j of jogadores) { j.gato.atualizar(dt); j.grupo.position.y = j.altSent * j.gato.nivelSentado(); }
+  for (const j of jogadores) { j.gato.atualizar(dt); j.grupo.position.y = j.altSent * j.gato.nivelSentado() + alturaCasal(j); }
+  atualizarCoracoes(dt); atualizarBotaoCasal(); enviarEstado(dt);
   atualizarCamera(dt); atualizarZona(dt); atualizarQuadro();
 }
 renderer.setAnimationLoop(() => { passo(relogio.getDelta()); renderer.render(cena, camera); });
 
 // posição inicial da câmera atrás do gato
 { const p = eu(); cam.yaw = p.yaw - Math.PI; camera.position.set(p.x + Math.sin(cam.yaw) * 4, 2.4, p.z + Math.cos(cam.yaw) * 4); }
+
+// ---------- tela de escolha: a primeira coisa ao abrir o jogo ----------
+function retratos() {          // foto de cada gatinho para os cartões (desenhada uma vez, num quadro à parte)
+  try {
+    const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    r.setPixelRatio(1); r.setSize(300, 340, false); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = renderer.toneMapping;
+    const sc = new THREE.Scene(), cm = new THREE.PerspectiveCamera(30, 300 / 340, 0.1, 20);
+    sc.add(new THREE.HemisphereLight(0xffffff, 0xcbb9a0, 2.4)); const luz = new THREE.DirectionalLight(0xfff4e6, 1.8); luz.position.set(1.5, 2.5, 3); sc.add(luz);
+    cm.position.set(0, 0.78, 3.0); cm.lookAt(0, 0.66, 0);
+    const fotos = jogadores.map((j) => {
+      const c = j.grupo.clone(true); c.position.set(0, 0, 0); c.rotation.set(0, 0.25 * (j.terno ? 1 : -1), 0); c.visible = true;
+      sc.add(c); r.render(sc, cm); const url = r.domElement.toDataURL('image/png'); sc.remove(c); return url;
+    });
+    r.dispose(); r.forceContextLoss(); return fotos;
+  } catch { return []; }
+}
+let escolhendo = true;
+function fecharEscolha(i) {
+  if (escolhendo) { escolhendo = false; $('escolha').classList.add('fim'); setTimeout(() => { $('escolha').hidden = true; }, 600); }
+  if (i !== ativo) definirGatos(i); else atualizarNome();
+}
+{
+  const fotos = retratos();
+  document.querySelectorAll('#escolha .cartao').forEach((b) => {
+    const i = +b.dataset.gato; if (fotos[i]) b.querySelector('img').src = fotos[i];
+    b.querySelector('b').textContent = jogadores[i].nome;
+    b.addEventListener('click', () => fecharEscolha(i));
+  });
+  $('escolha').hidden = false;
+}
 $('carregando').classList.add('fim');
 
 // gancho para testes automáticos
 window.museu = {
-  jogadores, cam, salao, mobilia, recep, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
+  jogadores, cam, salao, mobilia, recep, online, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
   ativo: () => ativo,
   colocar(x, z, yaw) { const p = eu(); p.x = x; p.z = z; if (yaw != null) p.yaw = yaw; p.grupo.position.set(x, 0, z); p.grupo.rotation.y = p.yaw; camera.position.set(x + Math.sin(cam.yaw) * cam.dist, 2.4, z + Math.cos(cam.yaw) * cam.dist); },
   cima(on) { if (on !== cima) $('btnCima').click(); },
-  humor: (n) => fazerHumor(eu(), n), gesto: (n) => fazerGesto(eu(), n), trocar: () => $('trocar').click(),
+  humor: (n) => fazerHumor(eu(), n), gesto: (n) => fazerGesto(eu(), n), trocar: () => definirGatos((ativo + 1) % jogadores.length), escolher: (i) => fecharEscolha(i),
   tick(dt = 1 / 60, n = 1) { for (let i = 0; i < n; i++) passo(dt); },
   pausar() { renderer.setAnimationLoop(null); },
   png() { renderer.render(cena, camera); return renderer.domElement.toDataURL('image/png'); },

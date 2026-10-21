@@ -1,5 +1,12 @@
 NOSSO MUSEU — como atualizar no GitHub
-1. No repositório, apague os arquivos antigos e envie TODOS os arquivos desta pasta (Add file > Upload files).
-2. Commit. Em Settings > Pages, a branch main / root fica publicada.
-3. Abra o link e aguarde 1-2 minutos.
-As fotos dos quadros ficam só no aparelho de quem as adiciona (não vão para o GitHub).
+1. No repositório, apague os arquivos antigos e envie TODOS os arquivos desta pasta (Add file > Upload files), soltos, sem pasta.
+2. Commit. Em Settings > Pages fica publicado (branch main, pasta raiz). Espere 1-2 minutos.
+
+JOGAR ONLINE (cada um no seu celular)
+- Um toca em "Online" > "Criar sala" > "Enviar convite" e manda o link para o outro (ou o outro digita o código de 8 letras).
+- Quando conectar, cada um anda com o seu gatinho. Carinhos, gestos, emoções e assentos aparecem nos dois celulares.
+- Funciona melhor com os dois no Wi-Fi. Em alguns 4G a conexão direta pode não abrir (limite da versão gratuita).
+- Como funciona: a conexão é direta entre os celulares (WebRTC). Só para os dois se acharem, um recado com o "endereço" da conexão
+  passa pelo serviço público gratuito ntfy.sh, numa sala com código aleatório. Depois disso, nada passa por servidor.
+- O que passa entre os celulares: posição, gestos, emoções, assentos e carinhos. As FOTOS dos quadros NÃO passam:
+  ficam só no aparelho de quem colocou.
