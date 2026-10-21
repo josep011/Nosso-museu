@@ -1,0 +1,9 @@
+NOSSO MUSEU - arquivos para o GitHub (todos soltos, sem pastas)
+
+1. Crie um repositorio PUBLICO no GitHub.
+2. Add file > Upload files, selecione TODOS estes arquivos (inclusive os dois .glb) e confirme (Commit).
+3. Settings > Pages > Source: "Deploy from a branch", Branch: main, pasta "/ (root)" > Save.
+4. Espere 1 a 2 minutos. O link aparece em Settings > Pages.
+
+Os gatos (.glb) sao copias dos originais, sem alteracao.
+Biblioteca 3D: three.js r170 (licenca MIT, ver LICENSE-three.txt).

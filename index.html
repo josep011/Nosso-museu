@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1b1a1f">
+<title>Nosso Museu</title>
+<style>
+  :root { --vidro: rgba(28,27,32,.62); --borda: rgba(255,255,255,.16); --texto: #f4f1ea; --suave: #b9b4a8; --destaque: #e8c98f; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #1b1a1f; color: var(--texto); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+  canvas#cena { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .vidro { background: var(--vidro); border: 1px solid var(--borda); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 14px; }
+  #hud { position: fixed; top: max(12px, env(safe-area-inset-top)); left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; pointer-events: none; }
+  #hud > * { pointer-events: auto; }
+  #quem { padding: 8px 10px 8px 14px; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  #quem b { font-weight: 600; }
+  button { font: inherit; color: var(--texto); background: rgba(255,255,255,.12); border: 1px solid var(--borda); border-radius: 10px; padding: 7px 12px; cursor: pointer; }
+  button:active { background: rgba(255,255,255,.22); }
+  #zona { position: fixed; top: max(64px, calc(env(safe-area-inset-top) + 52px)); left: 50%; transform: translateX(-50%); padding: 6px 16px; font-size: 13px; letter-spacing: .04em; color: var(--destaque); opacity: 0; transition: opacity .5s; pointer-events: none; white-space: nowrap; }
+  #zona.on { opacity: 1; }
+  #joy { position: fixed; left: max(24px, env(safe-area-inset-left)); bottom: max(28px, env(safe-area-inset-bottom)); width: 124px; height: 124px; border-radius: 50%; background: rgba(255,255,255,.1); border: 1px solid var(--borda); touch-action: none; }
+  #joy small { position: absolute; top: -20px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--suave); }
+  #knob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%; background: rgba(255,255,255,.75); box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+  #acoes { position: fixed; right: max(20px, env(safe-area-inset-right)); bottom: max(28px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+  .redondo { width: 56px; height: 56px; border-radius: 50%; font-size: 24px; padding: 0; display: grid; place-items: center; background: rgba(255,255,255,.82); color: #2a2830; border: none; box-shadow: 0 2px 12px rgba(0,0,0,.3); }
+  #btnCima { font-size: 12px; padding: 6px 10px; }
+  #painel { position: fixed; right: 12px; bottom: 100px; width: min(330px, calc(100vw - 24px)); max-height: 34vh; overflow: auto; padding: 12px; display: none; touch-action: pan-y; }
+  #painel.on { display: block; }
+  #painel h3 { margin: 6px 4px 8px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--suave); }
+  .grade { display: flex; flex-wrap: wrap; gap: 6px; }
+  .grade button { font-size: 13px; padding: 6px 10px; }
+  #dica { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 11px; color: rgba(255,255,255,.55); pointer-events: none; }
+  #carregando { position: fixed; inset: 0; background: #1b1a1f; display: grid; place-items: center; text-align: center; z-index: 9; transition: opacity .6s; }
+  #carregando.fim { opacity: 0; pointer-events: none; }
+  #carregando h1 { font-weight: 500; font-size: 26px; margin: 0 0 14px; letter-spacing: .02em; }
+  #barra { width: 200px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.15); margin: 0 auto; overflow: hidden; }
+  #barra i { display: block; height: 100%; width: 0; background: var(--destaque); transition: width .2s; }
+  @media (hover: hover) and (pointer: fine) { #joy { opacity: .55; } }
+</style>
+</head>
+<body>
+<canvas id="cena"></canvas>
+
+<div id="carregando"><div><h1>Nosso Museu</h1><div id="barra"><i></i></div></div></div>
+
+<div id="hud">
+  <div id="quem" class="vidro"><span>Você é <b id="nomeGato">—</b></span><button id="trocar">Trocar gato</button></div>
+</div>
+<div id="zona" class="vidro"></div>
+
+<div id="joy"><small>Mover</small><div id="knob"></div></div>
+<div id="acoes">
+  <button id="btnCima" class="vidro">Ver de cima</button>
+  <button id="btnEmocoes" class="redondo" aria-label="Emoções e gestos">☺</button>
+</div>
+<div id="painel" class="vidro">
+  <h3>Como estou</h3><div class="grade" id="gradeHumores"></div>
+  <h3>Gestos</h3><div class="grade" id="gradeGestos"></div>
+</div>
+<div id="dica">WASD ou setas para andar · arraste para girar a câmera</div>
+
+<script type="importmap">
+{ "imports": { "three": "./three.module.js", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js" } }
+</script>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
