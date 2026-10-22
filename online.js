@@ -52,7 +52,7 @@ export function criarOnline({ aoAbrir, aoMensagem, aoFechar, aoStatus, aoFoto, a
         const idOk = typeof m.id === 'string' && /^[a-z0-9-]{1,48}$/.test(m.id), emOk = Number.isFinite(m.em) && m.em > 0;
         if (m.t === 'fi' && idOk && emOk && Number.isInteger(m.tam) && m.tam > 0 && m.tam <= TAM_MAX_FOTO) recebendo = { id: m.id, em: m.em, tam: m.tam, partes: [], n: 0 };
         else if (m.t === 'fr' && idOk && emOk) aoFoto && aoFoto(m.id, null, m.em);
-        else if ((m.t === 'fm' || m.t === 'fq') && aoFotoAviso) aoFotoAviso(m);      // lista de fotos / pedido de uma foto (conferidos no jogo)
+        else if ((m.t === 'fm' || m.t === 'fq' || m.t === 'mi') && aoFotoAviso) aoFotoAviso(m);   // lista, pedido de foto, item do mural      // lista de fotos / pedido de uma foto (conferidos no jogo)
         return;
       }
       if (!recebendo || !(ev.data instanceof ArrayBuffer)) return;

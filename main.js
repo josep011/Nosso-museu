@@ -2,15 +2,17 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { criarGato } from './gato.js?v=202610220023';
-import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610220023';
-import { criarOnline, codigoValido } from './online.js?v=202610220023';
-import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610220023';
-import { criarQuadros } from './quadros.js?v=202610220023';
-import { construirMobilia } from './mobilia.js?v=202610220023';
-import { construirDecoracao } from './decoracao.js?v=202610220023';
-import { criarRecepcionista } from './recepcionista.js?v=202610220023';
-import * as armazem from './armazem.js?v=202610220023';
+import { criarGato } from './gato.js?v=202610220905';
+import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610220905';
+import { criarOnline, codigoValido } from './online.js?v=202610220905';
+import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610220905';
+import { criarMural, MURAL } from './mural.js?v=202610220905';
+import { criarBuque, criarArranjo, criarVaso } from './buque.js?v=202610220905';
+import { criarQuadros } from './quadros.js?v=202610220905';
+import { construirMobilia } from './mobilia.js?v=202610220905';
+import { construirDecoracao } from './decoracao.js?v=202610220905';
+import { criarRecepcionista } from './recepcionista.js?v=202610220905';
+import * as armazem from './armazem.js?v=202610220905';
 
 const ALTURA_GATO = 1.3;      // altura do gato no jogo, em metros
 const RAIO = 0.38;            // "tamanho" do gato para colisões
@@ -54,6 +56,7 @@ const quadros = criarQuadros(cena);
 const mobilia = construirMobilia(cena, salao);
 construirDecoracao(cena, salao);
 const vitrola = criarVitrola(cena, salao, { x: 10.75, z: -6.0, yaw: -Math.PI / 2 });     // no café, embaixo do quadro
+let mural = null;     // criado depois dos gatos (precisa saber quem você é)
 
 function ajustar() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -137,6 +140,15 @@ const jogadores = [
 const recep = criarRecepcionista(gTerno, cena, { x: 2.0, z: 7.0, yaw: Math.PI });
 salao.colliders.push({ x0: 1.8, z0: 6.8, x1: 2.2, z1: 7.2 });      // funcionário da recepção (não jogável)
 let ativo = 0;
+mural = criarMural(cena, salao, {
+  quem: () => jogadores[ativo].nome, aviso: (t) => aviso(t),
+  aoMudar: (meta, blob, removido) => {          // mudou algo no mural: vai para o outro celular (se compartilhando)
+    if (!compartilhando()) return;
+    if (removido) online.removerFoto(meta.id, meta.em);
+    else { online.avisoFotos({ t: 'mi', item: meta }); if (blob) online.enviarFoto(meta.id, blob, meta.em); }
+  },
+});
+$('btnMural').addEventListener('click', () => { sairZoom(); mural.abrir(); });
 const eu = () => jogadores[ativo];
 
 // ---------- interface: emoções e gestos ----------
@@ -160,7 +172,7 @@ let cima = false;
 $('btnCima').addEventListener('click', () => { cima = !cima; salao.esconderTeto(cima); $('btnCima').textContent = cima ? 'Voltar ao gato' : 'Ver de cima'; });
 
 // ---------- sentar nos bancos, poltronas e sofá ----------
-let assentoPerto = null, vitrolaPerto = false;
+let assentoPerto = null, vitrolaPerto = false, muralPerto = false;
 function acharAssento(p) {
   let melhor = null, md = 1.25;
   for (const a of mobilia.assentos) {
@@ -196,18 +208,28 @@ async function enviarLista() {               // "estas são as fotos que eu tenh
 }
 async function avisoDeFotos(m) {             // lista do outro: pede o que for mais novo lá; aplica remoções mais novas
   if (!$('chkFotos').checked) return;
+  if (m.t === 'mi') { if (m.item && mural.aplicarRemoto(m.item)) online.avisoFotos({ t: 'fq', id: m.item.id }); return; }   // item do mural
+  if (m.t === 'fq' && typeof m.id === 'string' && m.id.startsWith('mural-')) {
+    const p = mural.pegar(m.id); if (p) { online.avisoFotos({ t: 'mi', item: p.meta }); if (p.blob) online.enviarFoto(m.id, p.blob, p.meta.em); }
+    return;
+  }
   if (m.t === 'fq' && typeof m.id === 'string' && fotosLocais.has(m.id)) {
     try { const r = await armazem.uma(m.id); if (r && r.blob) online.enviarFoto(r.id, r.blob, r.em || 1); } catch { /* ok */ }
     return;
   }
   if (m.t !== 'fm' || !Array.isArray(m.itens)) return;
   for (const it of m.itens.slice(0, 300)) {
+    if (it && typeof it.id === 'string' && it.id.startsWith('mural-') && Number.isFinite(it.em)) {
+      if (it.em > mural.versao(it.id)) { if (it.a === 1) mural.removerRemoto(it.id, it.em); else online.avisoFotos({ t: 'fq', id: it.id }); }
+      continue;
+    }
     if (!it || typeof it.id !== 'string' || !quadros.porId(it.id) || !Number.isFinite(it.em)) continue;
     if (it.em <= (versao.get(it.id) || 0)) continue;
     if (it.a === 1) aplicarRemocao(it.id, it.em); else online.avisoFotos({ t: 'fq', id: it.id });
   }
 }
 async function receberFoto(id, blob, em) {   // foto (ou remoção) vinda do outro celular: conferida antes de aparecer
+  if (id.startsWith('mural-')) { if (!$('chkFotos').checked) return; if (blob) mural.receberImagem(id, blob); else mural.removerRemoto(id, em); return; }
   const q = quadros.porId(id); if (!q || !$('chkFotos').checked || !Number.isFinite(em) || em <= (versao.get(id) || 0)) return;
   if (!blob) { aplicarRemocao(id, em); return; }
   if (blob.size > 4 * 1024 * 1024) return;
@@ -224,8 +246,8 @@ function aplicarRemocao(id, em) {
 function aviso(txt) { $('aviso').textContent = txt; $('aviso').classList.add('on'); clearTimeout(tAviso); tAviso = setTimeout(() => $('aviso').classList.remove('on'), 3500); }
 function rotularQuadro() {
   const q = quadroAtual; const sent = !!eu().assento;
-  $('quadroUI').hidden = !(q || sent || assentoPerto || vitrolaPerto);
-  $('btnVitrola').hidden = !vitrolaPerto;
+  $('quadroUI').hidden = !(q || sent || assentoPerto || vitrolaPerto || muralPerto);
+  $('btnVitrola').hidden = !vitrolaPerto; $('btnMural').hidden = !muralPerto;
   $('btnSentar').hidden = !(sent || assentoPerto); $('btnSentar').textContent = sent ? 'Levantar' : 'Sentar';
   for (const id of ['btnPerto', 'btnFoto']) $(id).hidden = !q;
   $('notaFoto').hidden = !q;
@@ -239,6 +261,8 @@ function atualizarQuadro() {
   const a = eu().assento ? null : acharAssento(eu());
   const v = !cima && Math.hypot(eu().x - vitrola.x, eu().z - vitrola.z) < 1.7;
   if (v !== vitrolaPerto) { vitrolaPerto = v; rotularQuadro(); }
+  const mu = !cima && Math.abs(eu().x - MURAL.x) < 2.3 && eu().z > 4.0 && eu().z < 8;
+  if (mu !== muralPerto) { muralPerto = mu; rotularQuadro(); }
   if (q !== quadroAtual || a !== assentoPerto) { quadroAtual = q; assentoPerto = a; quadros.realce(q); rotularQuadro(); }
 }
 // reduz a foto (lado maior 1600 px) e corrige a rotação do celular antes de guardar
@@ -477,6 +501,77 @@ $('btnAceitarMao').addEventListener('click', () => { $('pedidoUI').hidden = true
 $('btnRecusarMao').addEventListener('click', () => { $('pedidoUI').hidden = true; online.enviar({ t: 'mr' }); });
 addEventListener('keydown', (e) => { if (e.repeat || e.code !== 'KeyM') return; if (maos) soltarMaos(); else pedirMao(); });
 
+// ---------- buquê: ele oferece, ela recebe, cheira, leva e coloca no vaso ----------
+// estado compartilhado: b = 'nenhum' | 'oferecendo' | 'com_ela'; vaso = 1 quando há flores no vaso. Guardado no aparelho.
+const VASO = { x: -8.3, y: 0.425, z: 4.82 };                       // na mesa de centro da sala de estar
+const vasoObj = criarVaso(); vasoObj.position.set(VASO.x, VASO.y, VASO.z); cena.add(vasoObj);
+const arranjo = criarArranjo(); arranjo.position.set(VASO.x, VASO.y, VASO.z); arranjo.scale.setScalar(1.15); cena.add(arranjo);
+const buqueMao = criarBuque(); buqueMao.scale.setScalar(1.3); buqueMao.rotation.order = 'YXZ'; cena.add(buqueMao);
+const ESTADOS_BQ = ['nenhum', 'oferecendo', 'com_ela'];
+const BQ = (() => { try { const v = JSON.parse(localStorage.getItem('museu-buque') || 'null'); if (v && ESTADOS_BQ.includes(v.b) && (v.vaso === 0 || v.vaso === 1) && Number.isFinite(v.em)) return v; } catch { /* ok */ } return { b: 'nenhum', vaso: 0, em: 0 }; })();
+const ele = () => jogadores[0], ela = () => jogadores[1];
+let cheirando = 0, camBuque = 0, buqK = 0, tAutoReceber = 0;
+const patas = jogadores.map((j) => [j.gato.modelo.getObjectByName('pata_esq'), j.gato.modelo.getObjectByName('pata_dir')]);
+function salvarBQ() { try { localStorage.setItem('museu-buque', JSON.stringify(BQ)); } catch { /* ok */ } }
+function mudarBQ(b, vaso, enviar = true) {
+  const antes = BQ.b; BQ.b = b; BQ.vaso = vaso; BQ.em = Math.max(Date.now(), BQ.em + 1); salvarBQ(); aplicarBQ(antes);
+  if (enviar) online.enviar({ t: 'bq', b, vaso, em: BQ.em });
+}
+function receberBQ(m) {
+  if (!ESTADOS_BQ.includes(m.b) || (m.vaso !== 0 && m.vaso !== 1) || !Number.isFinite(m.em) || m.em <= BQ.em) return;
+  const antes = BQ.b; BQ.b = m.b; BQ.vaso = m.vaso; BQ.em = m.em; salvarBQ(); aplicarBQ(antes);
+}
+function aplicarBQ(antes) {
+  buqueMao.visible = BQ.b !== 'nenhum'; arranjo.visible = BQ.vaso === 1;
+  ele().gato.segurarBuque(BQ.b === 'oferecendo' ? 'oferecer' : null);
+  ela().gato.segurarBuque(BQ.b === 'com_ela' ? (cheirando > 0 ? 'cheirar' : 'segurar') : null);
+  if (antes === 'oferecendo' && BQ.b === 'com_ela') {         // ela recebeu: carinha apaixonada e coraçõezinhos
+    ela().gato.humor('apaixonada'); ele().gato.humor('feliz'); for (let i = 0; i < 6; i++) setTimeout(() => soltarCoracao(ela().x, ela().z), i * 180);
+    clearTimeout(ela().tHumor); ela().tHumor = setTimeout(() => { ela().gato.humor('normal'); ele().gato.humor('normal'); }, 3500);
+    if (eu() === ela()) aviso('Você recebeu um buquê 💐 Leve até o vaso da sala de estar quando quiser.');
+  }
+  if (antes === 'com_ela' && BQ.b === 'nenhum' && BQ.vaso === 1) { for (let i = 0; i < 5; i++) setTimeout(() => soltarCoracao(VASO.x, VASO.z), i * 200); }
+  if (BQ.b !== 'com_ela') { cheirando = 0; camBuque = 0; }
+  rotularBuque();
+}
+const pertoDeEla = () => Math.hypot(ele().x - ela().x, ele().z - ela().z) < 2.6;
+const pertoDoVaso = () => Math.hypot(eu().x - VASO.x, eu().z - VASO.z) < 1.5;
+function rotularBuque() {
+  const souEle = eu() === ele(), souEla = eu() === ela();
+  $('btnBuque').hidden = !(souEle && BQ.b === 'nenhum');
+  $('btnGuardarBuque').hidden = !(souEle && BQ.b === 'oferecendo');
+  $('btnReceber').hidden = !(souEla && BQ.b === 'oferecendo' && pertoDeEla());
+  $('btnCheirar').hidden = !(souEla && BQ.b === 'com_ela');
+  $('btnVaso').hidden = !(souEla && BQ.b === 'com_ela' && pertoDoVaso());
+}
+$('btnBuque').addEventListener('click', () => {
+  if (eu() !== ele() || BQ.b !== 'nenhum') return;
+  if (!pertoDeEla()) { aviso('Chegue pertinho dela para oferecer o buquê.'); return; }
+  $('casalPainel').classList.remove('on'); mudarBQ('oferecendo', BQ.vaso);
+  if (!online.conectado()) { clearTimeout(tAutoReceber); tAutoReceber = setTimeout(() => { if (BQ.b === 'oferecendo') mudarBQ('com_ela', BQ.vaso); }, 1600); }   // no mesmo aparelho, ela aceita sozinha
+});
+$('btnGuardarBuque').addEventListener('click', () => { if (BQ.b === 'oferecendo') mudarBQ('nenhum', BQ.vaso); });
+$('btnReceber').addEventListener('click', () => { if (eu() === ela() && BQ.b === 'oferecendo') mudarBQ('com_ela', BQ.vaso); });
+$('btnCheirar').addEventListener('click', () => {
+  if (BQ.b !== 'com_ela') return; cheirando = 3.2; camBuque = 3.2; aplicarBQ(BQ.b);
+  ela().gato.expressao('felizes', 'sorriso', ['bochechas']); for (let i = 0; i < 4; i++) setTimeout(() => soltarCoracao(ela().x, ela().z), i * 250);
+});
+$('btnVaso').addEventListener('click', () => { if (eu() === ela() && BQ.b === 'com_ela' && pertoDoVaso()) { mudarBQ('nenhum', 1); aviso('As flores estão no vaso 💐'); } });
+const vA = new THREE.Vector3(), vB = new THREE.Vector3();
+function atualizarBuque(dt) {
+  if (cheirando > 0 && (cheirando -= dt) <= 0) { cheirando = 0; aplicarBQ(BQ.b); ela().gato.humor('normal'); }
+  if (camBuque > 0) camBuque -= dt;
+  rotularBuque();
+  if (!buqueMao.visible) return;
+  const j = BQ.b === 'oferecendo' ? ele() : ela(), [pe, pd] = patas[jogadores.indexOf(j)];
+  if (!pe || !pd) { buqueMao.position.set(j.x + Math.sin(j.yaw) * 0.25, 0.6 + j.grupo.position.y, j.z + Math.cos(j.yaw) * 0.25); return; }
+  pe.getWorldPosition(vA); pd.getWorldPosition(vB); vA.add(vB).multiplyScalar(0.5);
+  const frente = cheirando > 0 ? 0.13 : 0.03;          // ao cheirar, as flores ficam logo abaixo do nariz, na frente do rosto
+  buqueMao.position.set(vA.x + Math.sin(j.yaw) * frente, vA.y + (cheirando > 0 ? -0.04 : 0.02), vA.z + Math.cos(j.yaw) * frente);
+  buqueMao.rotation.set(BQ.b === 'oferecendo' ? 0.55 : (cheirando > 0 ? 0.6 : 0.12), j.yaw, 0);
+}
+aplicarBQ(null);
+
 // ---------- online: cada um no seu celular ----------
 let tPedido = 0, alvoRemoto = null, tEnvio = 0, eventosSeg = 0, tEventos = 0, tConectando = 0;
 const num = (v, a, b) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : null);
@@ -501,6 +596,7 @@ function receber(m) {          // tudo que chega do outro celular é conferido a
   else if (m.t === 'ma') { if (pedidoEnviado && performance.now() - pedidoEnviado < 20000 && podeMao()) iniciarMaos(eu(), outro(), m.l); }
   else if (m.t === 'mr') { if (pedidoEnviado) { pedidoEnviado = 0; aviso('Agora não 💕'); } }
   else if (m.t === 'ms') terminarMaos();
+  else if (m.t === 'bq') receberBQ(m);
   else if (m.t === 'mu' && Number.isInteger(m.i) && m.i >= 0 && m.i < MUSICAS.length && (m.on === 0 || m.on === 1)) tocador.ir(m.i, m.on === 1);
   else if (m.t === 'ola' && online.papel() === 'convidado' && (m.gato === 0 || m.gato === 1)) {
     const meu = 1 - m.gato, mudou = meu !== ativo || escolhendo;
@@ -534,7 +630,7 @@ const online = criarOnline({
   aoAbrir: (papel) => {
     clearTimeout(tConectando); $('onlineUI').hidden = true; alvoRemoto = null; atualizarOnlineUI();
     if (papel === 'anfitriao') { online.enviar({ t: 'ola', gato: ativo }); avisarMusica(); }
-    enviarLista(); rotularQuadro();
+    enviarLista(); rotularQuadro(); online.enviar({ t: 'bq', b: BQ.b, vaso: BQ.vaso, em: BQ.em });      // combina o estado do buquê (vale o mais novo)
     aviso('Conectados! Agora cada um anda com o seu gatinho.');
   },
   aoMensagem: receber,
@@ -591,7 +687,7 @@ function acomodar(p, dt) {       // desliza até o assento e se vira para a fren
   p.grupo.position.set(p.x, 0, p.z); p.grupo.rotation.y = p.yaw;
 }
 function mover(p, dt) {
-  if (casal || escolhendo) return;
+  if (casal || escolhendo || mural.aberto()) { if (p.andando) { p.gato.parar(0.25); p.andando = false; } return; }
   if (maos && maos.seguidor === p) {
     const quer = teclas.size > 0 || Math.hypot(joy.x, joy.y) > 0.3;
     if (quer && !avisouConduzido) { avisouConduzido = true; aviso('Você está sendo conduzida 💕 Toque em “Soltar a mão” para andar sozinha.'); }
@@ -647,8 +743,15 @@ function atualizarCamera(dt) {
     const v = visadaQuadro(zoomQ || ultimoZoom), k = zoomK * zoomK * (3 - 2 * zoomK);
     desejada.lerp(v.pos, k); olhar.lerp(v.c, k); fov = 55 + (v.fov - 55) * k;
   }
+  buqK += ((camBuque > 0 && eu() === ela() && BQ.b === 'com_ela' ? 1 : 0) - buqK) * (1 - Math.exp(-4 * dt)); if (buqK < 0.002) buqK = 0;
+  if (buqK > 0) {          // "Cheirar": a câmera chega pertinho do rosto e do buquê
+    const k = buqK * buqK * (3 - 2 * buqK);
+    desejada.lerp(vA.set(p.x + Math.sin(p.yaw) * 1.25, 1.05 + p.grupo.position.y, p.z + Math.cos(p.yaw) * 1.25), k);
+    olhar.lerp(vB.set(buqueMao.position.x, buqueMao.position.y + 0.12, buqueMao.position.z), k); fov += (40 - fov) * k;
+  }
   jogadores.forEach((j) => { j.grupo.visible = true; });
   if (zoomK > 0.6) p.grupo.visible = false;          // o gato some enquanto você olha a foto de perto
+  for (const j of jogadores) if (j !== p && Math.hypot(camera.position.x - j.x, camera.position.z - j.z) < 0.75 && camera.position.y < 1.6 + j.grupo.position.y) j.grupo.visible = false;   // não atravessar a cabeça de quem está colado na câmera
   if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
   camera.position.lerp(desejada, 1 - Math.exp(-14 * dt)); camera.lookAt(olhar);
 }
@@ -668,7 +771,7 @@ function passo(dt) {
   recep.atualizar(dt, jogadores);
   for (const j of jogadores) if (j !== eu() && j.assento) acomodar(j, dt);
   for (const j of jogadores) { j.gato.atualizar(dt); j.grupo.position.y = j.altSent * j.gato.nivelSentado() + alturaCasal(j); }
-  atualizarCoracoes(dt); atualizarBotaoCasal(); enviarEstado(dt); atualizarPosesCasal(); vitrola.atualizar(dt, tocador.tocando()); atualizarSom(dt); atualizarHora(dt);
+  atualizarCoracoes(dt); atualizarBotaoCasal(); enviarEstado(dt); atualizarPosesCasal(); vitrola.atualizar(dt, tocador.tocando()); atualizarSom(dt); atualizarHora(dt); atualizarBuque(dt);
   atualizarCamera(dt); atualizarZona(dt); atualizarQuadro();
 }
 function aplicarModo(leve) {
@@ -748,7 +851,7 @@ $('carregando').classList.add('fim');
 
 // gancho para testes automáticos
 window.museu = {
-  jogadores, cam, salao, mobilia, recep, online, tocador, refazerGPU, modo: (leve) => aplicarModo(leve), fotosLocais, hora: (h) => { horaFixa = h; tHora = 0; }, maos: () => maos, pedirMao, soltarMaos, iniciarMaos, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
+  jogadores, cam, salao, mobilia, recep, online, tocador, BQ, buque: { oferecer: () => $('btnBuque').click(), receber: () => $('btnReceber').click(), cheirar: () => $('btnCheirar').click(), vaso: () => $('btnVaso').click(), guardar: () => $('btnGuardarBuque').click() }, VASO, mural: () => mural, refazerGPU, modo: (leve) => aplicarModo(leve), fotosLocais, hora: (h) => { horaFixa = h; tHora = 0; }, maos: () => maos, pedirMao, soltarMaos, iniciarMaos, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
   ativo: () => ativo,
   colocar(x, z, yaw) { const p = eu(); p.x = x; p.z = z; if (yaw != null) p.yaw = yaw; p.grupo.position.set(x, 0, z); p.grupo.rotation.y = p.yaw; camera.position.set(x + Math.sin(cam.yaw) * cam.dist, 2.4, z + Math.cos(cam.yaw) * cam.dist); },
   cima(on) { if (on !== cima) $('btnCima').click(); },

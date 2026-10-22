@@ -2,6 +2,18 @@ NOSSO MUSEU — como atualizar no GitHub
 1. No repositório, apague os arquivos antigos e envie TODOS os arquivos desta pasta (Add file > Upload files), soltos, sem pasta.
 2. Commit. Em Settings > Pages fica publicado (branch main, pasta raiz). Espere 1-2 minutos.
 
+BUQUÊ 💐
+- O gatinho de terno, perto dela: ❤ > "Buquê" (ele estende o buquê). "Guardar o buquê" desiste.
+- Ela toca em "Receber o buquê", pode "Cheirar o buquê" (a câmera chega pertinho) e anda segurando o tempo que quiser.
+- Na sala de estar, perto do vaso de vidro na mesa de centro: "Colocar no vaso". As flores ficam lá.
+- Fica guardado no aparelho e aparece igual nos dois celulares no online. Sem online, ela aceita o buquê sozinha.
+
+MURAL DE RECADOS
+- Quadro de cortiça na parede da frente do Salão das fotos (à direita da recepção), com um banco de frente.
+- Chegue perto e toque em "Mural": escreva recados (post-its coloridos), coloque fotos, arraste para onde quiser,
+  gire, aumente/diminua fotos e remova. Dois dedos aproximam (ou deite o celular).
+- Fica guardado no aparelho e, no online (opção de compartilhar ligada), vai direto para o outro celular. Nunca no GitHub.
+
 MÚSICA (só na vitrola)
 - A vitrola fica no café. Chegue perto e toque em "Vitrola" para tocar/pausar, trocar e ajustar o volume.
 - O som sai da vitrola: mais alto perto, mais baixo longe, com eco de salão e abafado quando há parede no meio.

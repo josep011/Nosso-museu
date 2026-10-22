@@ -3,7 +3,7 @@
 // assentos a ~42 cm do chão, então as perninhas ficam balançando.
 // Devolve os assentos (onde os gatos podem sentar) e adiciona colisões ao salão.
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from './RoundedBoxGeometry.js?v=202610220023';
+import { RoundedBoxGeometry } from './RoundedBoxGeometry.js?v=202610220905';
 
 const COR = { claro: 0xd2ad7e, nogueira: 0x7b5638, preto: 0x1d1d20, creme: 0xeadfcd, salvia: 0x9fb394, rosa: 0xd7a79d,
               terracota: 0xc47b5a, azul: 0x8ba0ad, latao: 0xb89a5a, branco: 0xf4f1ea, bege: 0xd9cbb2 };
@@ -109,7 +109,8 @@ export function construirMobilia(cena, salao) {
   bancoEm(1.7, -7.5, -7.0, Math.PI, 'Banco da janela');        // olhando o jardim (canto de leitura)
   bancoEm(1.7, 7.5, -7.0, Math.PI, 'Banco da janela');         // olhando o jardim (café)
   bancoEm(1.7, 9.2, 4.5, Math.PI / 2, 'Banco do salão');       // de frente para a grade de quadros
-  bancoEm(1.7, -8.9, 1.2, -Math.PI / 2, 'Banco da sala');      // de frente para os quadros da parede esquerda
+  bancoEm(1.7, -8.9, 1.2, -Math.PI / 2, 'Banco da sala');
+  bancoEm(1.9, 7.56, 5.2, 0, 'Banco do mural');               // de frente para o mural de recados (com espaço para mexer nele)      // de frente para os quadros da parede esquerda
 
   // ---- canto de leitura: duas poltronas, mesinha, luminária e tapete redondo ----
   por(tapete(3.4, 3.4, COR.rosa, COR.bege, true), -7.4, -4.6, 0, { colisao: false });

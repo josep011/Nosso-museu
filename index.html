@@ -86,6 +86,8 @@
   #musicaUI .vol input { flex: 1; accent-color: #e8c98f; }
   #pedidoUI { position: fixed; left: 50%; top: max(110px, calc(env(safe-area-inset-top) + 98px)); transform: translateX(-50%); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; text-align: center; z-index: 6; width: min(320px, calc(100vw - 32px)); }
   #pedidoUI p { margin: 0; font-size: 14px; }
+  .pilula { font-size: 14px; padding: 9px 14px; border-radius: 22px; }
+  .pilula.forte { background: #f3b8c8; color: #3a2430; border-color: transparent; font-weight: 600; }
   #aviso { position: fixed; left: 50%; top: max(110px, calc(env(safe-area-inset-top) + 98px)); transform: translateX(-50%); padding: 8px 14px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 86vw; text-align: center; }
   #aviso.on { opacity: 1; }
 </style>
@@ -115,6 +117,10 @@
 <div id="acoes">
   <button id="btnCima" class="vidro">Ver de cima</button>
   <button id="btnSoltar" class="vidro" hidden>Soltar a mão</button>
+  <button id="btnReceber" class="vidro pilula forte" hidden>Receber o buquê 💐</button>
+  <button id="btnCheirar" class="vidro pilula" hidden>Cheirar o buquê 💐</button>
+  <button id="btnVaso" class="vidro pilula forte" hidden>Colocar no vaso</button>
+  <button id="btnGuardarBuque" class="vidro pilula" hidden>Guardar o buquê</button>
   <button id="btnCasal" class="redondo" aria-label="Carinhos" hidden>❤</button>
   <button id="btnEmocoes" class="redondo" aria-label="Emoções e gestos">☺</button>
 </div>
@@ -124,13 +130,14 @@
 </div>
 <div id="casalPainel" class="vidro">
   <h3>Carinho entre vocês</h3>
-  <div class="grade"><button id="btnBeijo">Beijo</button><button id="btnAbraco">Abraço</button><button id="btnCarinho">Carinho</button><button id="btnMao">Dar a mão</button></div>
+  <div class="grade"><button id="btnBeijo">Beijo</button><button id="btnAbraco">Abraço</button><button id="btnCarinho">Carinho</button><button id="btnMao">Dar a mão</button><button id="btnBuque" hidden>Buquê 💐</button></div>
 </div>
 <div id="dica">WASD ou setas para andar · arraste para girar a câmera</div>
 
 <div id="quadroUI" class="vidro" hidden>
   <button id="btnSentar" hidden>Sentar</button>
   <button id="btnVitrola" hidden>Vitrola</button>
+  <button id="btnMural" hidden>Mural</button>
   <button id="btnPerto">Ver de perto</button>
   <button id="btnFoto">Adicionar foto</button>
   <button id="btnRemover" hidden>Remover foto</button>
@@ -150,8 +157,8 @@
     <button id="btnConvite" class="forte">Enviar convite</button>
     <p id="onEstado">Esperando ela entrar…</p>
   </div>
-  <label class="opcao"><input type="checkbox" id="chkFotos" checked> Compartilhar as fotos do museu com quem entrar na sala</label>
-  <p class="suave mini">Funciona melhor com os dois no Wi-Fi. Vocês dois podem colocar, trocar e tirar fotos; elas vão direto de um celular para o outro e ficam guardadas só nos aparelhos de vocês — nunca no GitHub.</p>
+  <label class="opcao"><input type="checkbox" id="chkFotos" checked> Compartilhar fotos e recados do museu com quem entrar na sala</label>
+  <p class="suave mini">Funciona melhor com os dois no Wi-Fi. Vocês dois podem colocar, trocar e tirar fotos e recados; elas vão direto de um celular para o outro e ficam guardadas só nos aparelhos de vocês — nunca no GitHub.</p>
   <div class="linha"><button id="btnSairOnline" hidden>Sair do online</button><button id="btnFecharOnline">Fechar</button></div>
 </div>
 <input type="file" id="arqFoto" accept="image/*" hidden>
@@ -177,8 +184,8 @@
   addEventListener('unhandledrejection',function(ev){mostrarErro((ev.reason&&ev.reason.message)||'erro');});
 </script>
 <script type="importmap">
-{ "imports": { "three": "./three.module.js?v=202610220023", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js?v=202610220023", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js?v=202610220023", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js?v=202610220023", "three/addons/utils/BufferGeometryUtils.js": "./BufferGeometryUtils.js?v=202610220023" } }
+{ "imports": { "three": "./three.module.js?v=202610220905", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js?v=202610220905", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js?v=202610220905", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js?v=202610220905", "three/addons/utils/BufferGeometryUtils.js": "./BufferGeometryUtils.js?v=202610220905" } }
 </script>
-<script type="module" src="./main.js?v=202610220023"></script>
+<script type="module" src="./main.js?v=202610220905"></script>
 </body>
 </html>

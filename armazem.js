@@ -18,3 +18,4 @@ export async function todas() { const db = await abrir(); return pedido(loja(db,
 export async function uma(id) { const db = await abrir(); return pedido(loja(db, 'readonly').get(id)); }
 export async function salvar(id, blob, em = Date.now()) { const db = await abrir(); return pedido(loja(db, 'readwrite').put({ id, blob, em })); }
 export async function apagar(id, em = Date.now()) { const db = await abrir(); return pedido(loja(db, 'readwrite').put({ id, apagado: true, em })); }
+export async function guardar(reg) { const db = await abrir(); return pedido(loja(db, 'readwrite').put(reg)); }   // registro completo (usado pelo mural)
