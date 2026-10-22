@@ -2,15 +2,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { criarGato } from './gato.js?v=202610212354';
-import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610212354';
-import { criarOnline, codigoValido } from './online.js?v=202610212354';
-import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610212354';
-import { criarQuadros } from './quadros.js?v=202610212354';
-import { construirMobilia } from './mobilia.js?v=202610212354';
-import { construirDecoracao } from './decoracao.js?v=202610212354';
-import { criarRecepcionista } from './recepcionista.js?v=202610212354';
-import * as armazem from './armazem.js?v=202610212354';
+import { criarGato } from './gato.js?v=202610220023';
+import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610220023';
+import { criarOnline, codigoValido } from './online.js?v=202610220023';
+import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610220023';
+import { criarQuadros } from './quadros.js?v=202610220023';
+import { construirMobilia } from './mobilia.js?v=202610220023';
+import { construirDecoracao } from './decoracao.js?v=202610220023';
+import { criarRecepcionista } from './recepcionista.js?v=202610220023';
+import * as armazem from './armazem.js?v=202610220023';
 
 const ALTURA_GATO = 1.3;      // altura do gato no jogo, em metros
 const RAIO = 0.38;            // "tamanho" do gato para colisões
@@ -32,8 +32,22 @@ renderer.toneMapping = 'NeutralToneMapping' in THREE ? THREE.NeutralToneMapping 
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = modoLeve ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true;     // o salão não se mexe: sombra recalculada só quando o sol muda
 const cena = new THREE.Scene(); cena.background = new THREE.Color(0xcfd8dc);
-const pmrem = new THREE.PMREMGenerator(renderer);
-cena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; cena.environmentIntensity = 0.35;
+const gerarAmbiente = () => { const g = new THREE.PMREMGenerator(renderer); const t = g.fromScene(new RoomEnvironment(), 0.04).texture; g.dispose(); return t; };
+cena.environment = gerarAmbiente(); cena.environmentIntensity = 0.35;
+// Quando o celular tira o jogo da memória de vídeo (ex.: ao minimizar o navegador), refazemos tudo ao voltar:
+// texturas, luz de ambiente e sombras. Sem isso, o chão e o rosto do recepcionista ficavam pretos e tudo escuro.
+const TEXTURAS = ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap', 'lightMap', 'bumpMap'];
+function refazerGPU() {
+  const antiga = cena.environment; cena.environment = gerarAmbiente(); antiga?.dispose?.();
+  cena.traverse((o) => {
+    if (!o.material) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) { for (const k of TEXTURAS) if (m[k]) m[k].needsUpdate = true; m.needsUpdate = true; }
+  });
+  renderer.shadowMap.needsUpdate = true;
+}
+renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); }, false);     // deixa o navegador devolver a memória de vídeo
+renderer.domElement.addEventListener('webglcontextrestored', () => refazerGPU(), false);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) renderer.shadowMap.needsUpdate = true; });
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 120);
 const salao = construirSalao(cena);
 const quadros = criarQuadros(cena);
@@ -734,7 +748,7 @@ $('carregando').classList.add('fim');
 
 // gancho para testes automáticos
 window.museu = {
-  jogadores, cam, salao, mobilia, recep, online, tocador, modo: (leve) => aplicarModo(leve), fotosLocais, hora: (h) => { horaFixa = h; tHora = 0; }, maos: () => maos, pedirMao, soltarMaos, iniciarMaos, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
+  jogadores, cam, salao, mobilia, recep, online, tocador, refazerGPU, modo: (leve) => aplicarModo(leve), fotosLocais, hora: (h) => { horaFixa = h; tHora = 0; }, maos: () => maos, pedirMao, soltarMaos, iniciarMaos, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
   ativo: () => ativo,
   colocar(x, z, yaw) { const p = eu(); p.x = x; p.z = z; if (yaw != null) p.yaw = yaw; p.grupo.position.set(x, 0, z); p.grupo.rotation.y = p.yaw; camera.position.set(x + Math.sin(cam.yaw) * cam.dist, 2.4, z + Math.cos(cam.yaw) * cam.dist); },
   cima(on) { if (on !== cima) $('btnCima').click(); },

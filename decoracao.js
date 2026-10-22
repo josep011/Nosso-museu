@@ -2,7 +2,7 @@
 // Cada planta/estante vira UMA malha só (geometrias fundidas com cor por vértice): leve para celular.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SALAO } from './salao.js?v=202610212354';
+import { SALAO } from './salao.js?v=202610220023';
 
 const rng = (seed) => { let s = (seed >>> 0) || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; };
 const Y = new THREE.Vector3(0, 1, 0);
