@@ -2,14 +2,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { criarGato } from './gato.js?v=202610211911';
-import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610211911';
-import { criarOnline, codigoValido } from './online.js?v=202610211911';
-import { criarQuadros } from './quadros.js?v=202610211911';
-import { construirMobilia } from './mobilia.js?v=202610211911';
-import { construirDecoracao } from './decoracao.js?v=202610211911';
-import { criarRecepcionista } from './recepcionista.js?v=202610211911';
-import * as armazem from './armazem.js?v=202610211911';
+import { criarGato } from './gato.js?v=202610212212';
+import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610212212';
+import { criarOnline, codigoValido } from './online.js?v=202610212212';
+import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610212212';
+import { criarQuadros } from './quadros.js?v=202610212212';
+import { construirMobilia } from './mobilia.js?v=202610212212';
+import { construirDecoracao } from './decoracao.js?v=202610212212';
+import { criarRecepcionista } from './recepcionista.js?v=202610212212';
+import * as armazem from './armazem.js?v=202610212212';
 
 const ALTURA_GATO = 1.3;      // altura do gato no jogo, em metros
 const RAIO = 0.38;            // "tamanho" do gato para colisões
@@ -30,6 +31,7 @@ const salao = construirSalao(cena);
 const quadros = criarQuadros(cena);
 const mobilia = construirMobilia(cena, salao);
 construirDecoracao(cena, salao);
+const vitrola = criarVitrola(cena, salao, { x: 10.75, z: -6.0, yaw: -Math.PI / 2 });     // no café, embaixo do quadro
 
 function ajustar() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -136,7 +138,7 @@ let cima = false;
 $('btnCima').addEventListener('click', () => { cima = !cima; salao.esconderTeto(cima); $('btnCima').textContent = cima ? 'Voltar ao gato' : 'Ver de cima'; });
 
 // ---------- sentar nos bancos, poltronas e sofá ----------
-let assentoPerto = null;
+let assentoPerto = null, vitrolaPerto = false;
 function acharAssento(p) {
   let melhor = null, md = 1.25;
   for (const a of mobilia.assentos) {
@@ -155,7 +157,7 @@ function levantar(p) {
   p.gato.sentar(false); p.assento = null; a.ocupado = null;
   p.x = a.x + Math.sin(a.yaw) * 0.6; p.z = a.z + Math.cos(a.yaw) * 0.6; empurrar(p);   // levanta para a frente do assento
 }
-function alternarSentar() { if (casal) return; const p = eu(); if (p.assento) levantar(p); else sentar(p, acharAssento(p)); rotularQuadro(); }
+function alternarSentar() { if (casal || maos) return; const p = eu(); if (p.assento) levantar(p); else sentar(p, acharAssento(p)); rotularQuadro(); }
 $('btnSentar').addEventListener('click', alternarSentar);
 addEventListener('keydown', (e) => { if (e.code === 'KeyE' && !e.repeat) alternarSentar(); });
 
@@ -164,7 +166,8 @@ let quadroAtual = null, tAviso = 0;
 function aviso(txt) { $('aviso').textContent = txt; $('aviso').classList.add('on'); clearTimeout(tAviso); tAviso = setTimeout(() => $('aviso').classList.remove('on'), 3500); }
 function rotularQuadro() {
   const q = quadroAtual; const sent = !!eu().assento;
-  $('quadroUI').hidden = !(q || sent || assentoPerto);
+  $('quadroUI').hidden = !(q || sent || assentoPerto || vitrolaPerto);
+  $('btnVitrola').hidden = !vitrolaPerto;
   $('btnSentar').hidden = !(sent || assentoPerto); $('btnSentar').textContent = sent ? 'Levantar' : 'Sentar';
   for (const id of ['btnPerto', 'btnFoto']) $(id).hidden = !q;
   $('notaFoto').hidden = !q;
@@ -174,6 +177,8 @@ function rotularQuadro() {
 function atualizarQuadro() {
   const q = zoomQ || (cima ? null : quadros.perto(eu().x, eu().z, eu().yaw));
   const a = eu().assento ? null : acharAssento(eu());
+  const v = !cima && Math.hypot(eu().x - vitrola.x, eu().z - vitrola.z) < 1.7;
+  if (v !== vitrolaPerto) { vitrolaPerto = v; rotularQuadro(); }
   if (q !== quadroAtual || a !== assentoPerto) { quadroAtual = q; assentoPerto = a; quadros.realce(q); rotularQuadro(); }
 }
 // reduz a foto (lado maior 1600 px) e corrige a rotação do celular antes de guardar
@@ -252,7 +257,7 @@ const CASAL = { beijo: { dist: 0.66 }, abraco: { dist: 0.6 }, carinho: { dist: 0
 let casal = null;
 const outro = () => jogadores[(ativo + 1) % jogadores.length];
 const estilo = (j) => (j.terno ? 'ele' : 'ela');
-function podeCasal() { const a = eu(), b = outro(); return !casal && !cima && !a.assento && !b.assento && Math.hypot(a.x - b.x, a.z - b.z) < 2.2; }
+function podeCasal() { const a = eu(), b = outro(); return !casal && !maos && !cima && !a.assento && !b.assento && Math.hypot(a.x - b.x, a.z - b.z) < 2.2; }
 function rostoCasal(j, papel, tipo) {     // papel: 'faz' ou 'recebe'
   const beijoBoca = j.gato.tem('boca_beijo') ? 'beijo' : 'sorriso';
   if (tipo === 'beijo') { if (papel === 'faz') j.gato.expressao('felizes', beijoBoca, ['bochechas']); else j.gato.expressao('piscando', 'sorriso', ['bochechas']); }
@@ -318,8 +323,78 @@ addEventListener('keydown', (e) => { if (e.repeat) return; const t = { KeyB: 'be
 let podiaCasal = null;
 function atualizarBotaoCasal() { const p = podeCasal(); if (p !== podiaCasal) { podiaCasal = p; $('btnCasal').hidden = !p; if (!p) $('casalPainel').classList.remove('on'); } }
 
+// ---------- música (vitrola) ----------
+function rotularMusica() {
+  $('nomeMusica').textContent = tocador.nome(); $('btnTocar').textContent = tocador.tocando() ? '❚❚' : '▶';
+  $('btnTocar').setAttribute('aria-label', tocador.tocando() ? 'Pausar' : 'Tocar');
+  $('btnMusica').classList.toggle('on', tocador.tocando());
+  const varias = MUSICAS.length > 1; $('btnAnterior').disabled = !varias; $('btnProxima').disabled = !varias;
+}
+const tocador = criarTocador('./', { aoMudar: () => rotularMusica() });
+const avisarMusica = () => online.enviar({ t: 'mu', i: tocador.indice(), on: tocador.tocando() ? 1 : 0 });
+$('btnMusica').addEventListener('click', () => { $('musicaUI').hidden = !$('musicaUI').hidden; });
+$('btnVitrola').addEventListener('click', () => { $('musicaUI').hidden = false; });
+$('btnFecharMusica').addEventListener('click', () => { $('musicaUI').hidden = true; });
+$('btnTocar').addEventListener('click', () => { tocador.alternar(); avisarMusica(); });
+$('btnProxima').addEventListener('click', () => { tocador.proxima(); avisarMusica(); });
+$('btnAnterior').addEventListener('click', () => { tocador.anterior(); avisarMusica(); });
+$('volMusica').addEventListener('input', (e) => tocador.volume(+e.target.value));
+rotularMusica();
+
+// ---------- sentados juntinhos: pose de casal automática ----------
+const ladoDe = (j, o) => { const dx = o.x - j.x, dz = o.z - j.z, v = dx * Math.cos(j.yaw) - dz * Math.sin(j.yaw); return v < 0 ? -1 : 1; };
+function atualizarPosesCasal() {
+  const [a, b] = jogadores;
+  const juntos = a.assento && b.assento && a.assento.nome === b.assento.nome && Math.hypot(a.assento.x - b.assento.x, a.assento.z - b.assento.z) < 1.0
+    && a.gato.nivelSentado() > 0.9 && b.gato.nivelSentado() > 0.9;
+  for (const [j, o] of [[a, b], [b, a]]) {
+    const chave = juntos ? `${j.terno ? 'abracoLado' : 'ombro'}${ladoDe(j, o)}` : '';
+    if (chave === j.poseAtual) continue; j.poseAtual = chave;
+    if (juntos) j.gato.poseCasal(j.terno ? 'abracoLado' : 'ombro', ladoDe(j, o)); else j.gato.poseCasal(null);
+  }
+}
+
+// ---------- de mãos dadas (como no Sky): um pede, o outro aceita; quem pediu conduz ----------
+let maos = null, pedidoEnviado = 0, avisouConduzido = false;
+function podeMao() { const a = eu(), b = outro(); return !maos && !casal && !cima && Math.hypot(a.x - b.x, a.z - b.z) < 2.2; }
+function iniciarMaos(lider, seguidor, ladoCombinado) {
+  for (const j of [lider, seguidor]) { if (j.assento) levantar(j); j.gato.parar(0.1); j.andando = false; }
+  const lado = ladoCombinado === 1 || ladoCombinado === -1 ? ladoCombinado : ladoDe(lider, seguidor);     // no online os dois celulares usam o mesmo lado
+  maos = { lider, seguidor, lado }; pedidoEnviado = 0; avisouConduzido = false;
+  lider.gato.segurarMao(lado); seguidor.gato.segurarMao(-lado);
+  $('casalPainel').classList.remove('on'); $('pedidoUI').hidden = true; sairZoom(); rotularMaos();
+  aviso(lider === eu() ? 'De mãos dadas! Você conduz.' : `De mãos dadas! ${lider.nome} está te conduzindo.`);
+}
+function terminarMaos(avisar = true) {
+  if (!maos) return; const { lider, seguidor } = maos; maos = null;
+  for (const j of [lider, seguidor]) { j.gato.segurarMao(0); if (j !== eu() && j.andando && !online.conectado()) { j.gato.parar(0.25); j.andando = false; } }
+  if (seguidor.andando && seguidor === eu()) { seguidor.gato.parar(0.25); seguidor.andando = false; }
+  rotularMaos(); if (avisar) aviso('Soltaram as mãos.');
+}
+function pedirMao() {
+  if (!podeMao()) return;
+  if (!online.conectado()) { iniciarMaos(eu(), outro()); return; }        // no mesmo aparelho não tem para quem pedir
+  pedidoEnviado = performance.now(); online.enviar({ t: 'mp' }); $('casalPainel').classList.remove('on'); aviso('Pedido enviado… 💕');
+}
+function soltarMaos() { if (!maos) return; online.enviar({ t: 'ms' }); terminarMaos(); }
+function rotularMaos() { $('btnSoltar').hidden = !maos; }
+function atualizarMaos(dt) {
+  if (!maos) return;
+  const { lider: L, seguidor: F, lado } = maos, d = 0.6;
+  const tx = L.x + Math.cos(L.yaw) * lado * d, tz = L.z - Math.sin(L.yaw) * lado * d;
+  if (Math.hypot(tx - F.x, tz - F.z) > 1.4) { F.x = tx; F.z = tz; }
+  const k = 1 - Math.exp(-12 * dt); F.x += (tx - F.x) * k; F.z += (tz - F.z) * k; F.yaw += angDiff(F.yaw, L.yaw) * k;
+  empurrar(F); F.grupo.position.set(F.x, 0, F.z); F.grupo.rotation.y = F.yaw;
+  if (L.andando && !F.andando) { F.gato.acao('andar'); F.andando = true; } else if (!L.andando && F.andando) { F.gato.parar(0.25); F.andando = false; }
+}
+$('btnMao').addEventListener('click', pedirMao);
+$('btnSoltar').addEventListener('click', soltarMaos);
+$('btnAceitarMao').addEventListener('click', () => { $('pedidoUI').hidden = true; if (!podeMao()) return; const l = ladoDe(outro(), eu()); online.enviar({ t: 'ma', l }); iniciarMaos(outro(), eu(), l); });
+$('btnRecusarMao').addEventListener('click', () => { $('pedidoUI').hidden = true; online.enviar({ t: 'mr' }); });
+addEventListener('keydown', (e) => { if (e.repeat || e.code !== 'KeyM') return; if (maos) soltarMaos(); else pedirMao(); });
+
 // ---------- online: cada um no seu celular ----------
-let alvoRemoto = null, tEnvio = 0, eventosSeg = 0, tEventos = 0, tConectando = 0;
+let tPedido = 0, alvoRemoto = null, tEnvio = 0, eventosSeg = 0, tEventos = 0, tConectando = 0;
 const num = (v, a, b) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : null);
 const tem = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
 function definirGatos(i) {
@@ -338,6 +413,11 @@ function receber(m) {          // tudo que chega do outro celular é conferido a
   if (m.t === 'h' && tem(HUMORES, m.n)) fazerHumor(outro(), m.n);
   else if (m.t === 'g' && tem(GESTOS, m.n)) fazerGesto(outro(), m.n);
   else if (m.t === 'c' && tem(CASAL, m.n)) iniciarCasal(m.n, true);
+  else if (m.t === 'mp') { if (podeMao()) { $('pedidoTexto').textContent = `${outro().nome} quer te conduzir de mãos dadas.`; $('pedidoUI').hidden = false; clearTimeout(tPedido); tPedido = setTimeout(() => { $('pedidoUI').hidden = true; }, 15000); } else online.enviar({ t: 'mr' }); }
+  else if (m.t === 'ma') { if (pedidoEnviado && performance.now() - pedidoEnviado < 20000 && podeMao()) iniciarMaos(eu(), outro(), m.l); }
+  else if (m.t === 'mr') { if (pedidoEnviado) { pedidoEnviado = 0; aviso('Agora não 💕'); } }
+  else if (m.t === 'ms') terminarMaos();
+  else if (m.t === 'mu' && Number.isInteger(m.i) && m.i >= 0 && m.i < MUSICAS.length && (m.on === 0 || m.on === 1)) tocador.ir(m.i, m.on === 1);
   else if (m.t === 'ola' && online.papel() === 'convidado' && (m.gato === 0 || m.gato === 1)) {
     const meu = 1 - m.gato, mudou = meu !== ativo || escolhendo;
     fecharEscolha(meu);
@@ -345,7 +425,7 @@ function receber(m) {          // tudo que chega do outro celular é conferido a
   }
 }
 function atualizarRemoto(dt) {
-  if (!online.conectado() || !alvoRemoto || casal) return;
+  if (!online.conectado() || !alvoRemoto || casal || (maos && maos.seguidor === outro())) return;
   const r = outro(), a = alvoRemoto;
   if (a.assento) {
     if (r.assento !== a.assento) { if (r.assento) levantar(r); if (!a.assento.ocupado) sentar(r, a.assento); }
@@ -369,11 +449,11 @@ const TEXTO_ON = { esperando: 'Esperando ela entrar…', procurando: 'Procurando
 const online = criarOnline({
   aoAbrir: (papel) => {
     clearTimeout(tConectando); $('onlineUI').hidden = true; alvoRemoto = null; atualizarOnlineUI();
-    if (papel === 'anfitriao') online.enviar({ t: 'ola', gato: ativo });
+    if (papel === 'anfitriao') { online.enviar({ t: 'ola', gato: ativo }); avisarMusica(); }
     aviso('Conectados! Agora cada um anda com o seu gatinho.');
   },
   aoMensagem: receber,
-  aoFechar: () => { alvoRemoto = null; const r = outro(); if (r.andando) { r.gato.parar(0.25); r.andando = false; } aviso('A conexão caiu. Dá para criar a sala de novo.'); atualizarOnlineUI(); },
+  aoFechar: () => { terminarMaos(false); $('pedidoUI').hidden = true; alvoRemoto = null; const r = outro(); if (r.andando) { r.gato.parar(0.25); r.andando = false; } aviso('A conexão caiu. Dá para criar a sala de novo.'); atualizarOnlineUI(); },
   aoStatus: (st) => { $('onEstado').textContent = TEXTO_ON[st] || ''; if (st === 'falhou') aviso(TEXTO_ON.falhou); },
 });
 function atualizarOnlineUI() {
@@ -418,6 +498,11 @@ function acomodar(p, dt) {       // desliza até o assento e se vira para a fren
 }
 function mover(p, dt) {
   if (casal || escolhendo) return;
+  if (maos && maos.seguidor === p) {
+    const quer = teclas.size > 0 || Math.hypot(joy.x, joy.y) > 0.3;
+    if (quer && !avisouConduzido) { avisouConduzido = true; aviso('Você está sendo conduzida 💕 Toque em “Soltar a mão” para andar sozinha.'); }
+    return;
+  }
   let ix = (teclas.has('KeyD') || teclas.has('ArrowRight') ? 1 : 0) - (teclas.has('KeyA') || teclas.has('ArrowLeft') ? 1 : 0) + joy.x;
   let iy = (teclas.has('KeyW') || teclas.has('ArrowUp') ? 1 : 0) - (teclas.has('KeyS') || teclas.has('ArrowDown') ? 1 : 0) + joy.y;
   const m = Math.min(1, Math.hypot(ix, iy));
@@ -437,7 +522,7 @@ function mover(p, dt) {
   } else if (p.andando) { p.gato.parar(0.25); p.andando = false; }
   empurrar(p);
   for (const o of jogadores) {          // não atravessa o outro gato
-    if (o === p) continue;
+    if (o === p || maos) continue;
     const dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz), min = RAIO * 2;
     if (d < min && d > 1e-4) { p.x += (dx / d) * (min - d); p.z += (dz / d) * (min - d); }
   }
@@ -485,10 +570,11 @@ function passo(dt) {
   mover(eu(), dt);
   atualizarRemoto(dt);
   atualizarCasal(dt);
+  atualizarMaos(dt);
   recep.atualizar(dt, jogadores);
   for (const j of jogadores) if (j !== eu() && j.assento) acomodar(j, dt);
   for (const j of jogadores) { j.gato.atualizar(dt); j.grupo.position.y = j.altSent * j.gato.nivelSentado() + alturaCasal(j); }
-  atualizarCoracoes(dt); atualizarBotaoCasal(); enviarEstado(dt);
+  atualizarCoracoes(dt); atualizarBotaoCasal(); enviarEstado(dt); atualizarPosesCasal(); vitrola.atualizar(dt, tocador.tocando());
   atualizarCamera(dt); atualizarZona(dt); atualizarQuadro();
 }
 renderer.setAnimationLoop(() => { passo(relogio.getDelta()); renderer.render(cena, camera); });
@@ -513,7 +599,7 @@ function retratos() {          // foto de cada gatinho para os cartões (desenha
 }
 let escolhendo = true;
 function fecharEscolha(i) {
-  if (escolhendo) { escolhendo = false; $('escolha').classList.add('fim'); setTimeout(() => { $('escolha').hidden = true; }, 600); }
+  if (escolhendo) { escolhendo = false; tocador.tocar(); $('escolha').classList.add('fim'); setTimeout(() => { $('escolha').hidden = true; }, 600); }
   if (i !== ativo) definirGatos(i); else atualizarNome();
 }
 {
@@ -529,7 +615,7 @@ $('carregando').classList.add('fim');
 
 // gancho para testes automáticos
 window.museu = {
-  jogadores, cam, salao, mobilia, recep, online, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
+  jogadores, cam, salao, mobilia, recep, online, tocador, maos: () => maos, pedirMao, soltarMaos, iniciarMaos, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
   ativo: () => ativo,
   colocar(x, z, yaw) { const p = eu(); p.x = x; p.z = z; if (yaw != null) p.yaw = yaw; p.grupo.position.set(x, 0, z); p.grupo.rotation.y = p.yaw; camera.position.set(x + Math.sin(cam.yaw) * cam.dist, 2.4, z + Math.cos(cam.yaw) * cam.dist); },
   cima(on) { if (on !== cima) $('btnCima').click(); },

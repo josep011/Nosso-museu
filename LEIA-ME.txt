@@ -2,11 +2,19 @@ NOSSO MUSEU — como atualizar no GitHub
 1. No repositório, apague os arquivos antigos e envie TODOS os arquivos desta pasta (Add file > Upload files), soltos, sem pasta.
 2. Commit. Em Settings > Pages fica publicado (branch main, pasta raiz). Espere 1-2 minutos.
 
+MÚSICA
+- A vitrola fica no café. A música começa baixinho quando você escolhe o gatinho (o celular só deixa tocar depois de um toque).
+- Botão ♪ no canto de cima: tocar/pausar, anterior/próxima e volume. No online, tocar/pausar/trocar vale para os dois.
+- Para adicionar músicas: mande o arquivo MP3 (com direito de uso) e ele entra na lista da vitrola.
+
 JOGAR ONLINE (cada um no seu celular)
 - Um toca em "Online" > "Criar sala" > "Enviar convite" e manda o link para o outro (ou o outro digita o código de 8 letras).
-- Quando conectar, cada um anda com o seu gatinho. Carinhos, gestos, emoções e assentos aparecem nos dois celulares.
+- Quando conectar, cada um anda com o seu gatinho. Carinhos, mãos dadas, gestos, emoções, assentos e música aparecem nos dois.
 - Funciona melhor com os dois no Wi-Fi. Em alguns 4G a conexão direta pode não abrir (limite da versão gratuita).
-- Como funciona: a conexão é direta entre os celulares (WebRTC). Só para os dois se acharem, um recado com o "endereço" da conexão
-  passa pelo serviço público gratuito ntfy.sh, numa sala com código aleatório. Depois disso, nada passa por servidor.
-- O que passa entre os celulares: posição, gestos, emoções, assentos e carinhos. As FOTOS dos quadros NÃO passam:
-  ficam só no aparelho de quem colocou.
+- Como funciona: conexão direta entre os celulares (WebRTC). Só para se acharem, um recado passa pelo serviço público gratuito
+  ntfy.sh, numa sala de código aleatório. Depois disso nada passa por servidor.
+- As FOTOS dos quadros NÃO passam entre os celulares: ficam só no aparelho de quem colocou.
+
+DE MÃOS DADAS (como no Sky)
+- Perto do outro gatinho: ❤ > "Dar a mão". No online o outro recebe o pedido e escolhe "Dar a mão" ou "Agora não".
+- Quem pediu conduz; quem é conduzido toca em "Soltar a mão" quando quiser andar sozinho (quem conduz também pode soltar).

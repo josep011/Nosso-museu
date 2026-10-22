@@ -227,19 +227,33 @@ export function criarGato(gltf, { humorInicial = 'normal' } = {}) {
   let sentAlvo = 0, sentK = 0;
   let joelho = 1.45;      // dobra do joelho: 1.45 = canela pendurada, ~0.25 = perna esticada para a frente
   function sentar(sim = true, esticado = false) { sentAlvo = sim ? 1 : 0; if (sim) joelho = esticado ? 0.25 : 1.45; }
+  // ---------- poses de casal (sentados juntinhos) e mão dada: camadas por cima de tudo ----------
+  //   lado = de que lado (eixo x do gato) está o outro: -1 ou +1
+  const POSES = {
+    ombro: (l) => ({ tr: [0.03, 0, -l * 0.27], cab: [0.06, 0, -l * 0.48], oE: [0, 0, 0.12], oD: [0, 0, -0.12] }),       // ela encosta a cabeça no ombro dele
+    abracoLado: (l) => (l < 0 ? { bE: [0.1, 0, -1.3], aE: [-0.3, 0, 0.8], tr: [0, 0, 0.06], cab: [0.04, 0, 0.14] }     // ele passa o braço por trás dela
+                               : { bD: [0.1, 0, 1.3], aD: [-0.3, 0, -0.8], tr: [0, 0, -0.06], cab: [0.04, 0, -0.14] }),
+  };
+  const MAO = (l) => (l < 0 ? { bE: [-0.12, 0, -0.45], aE: [-0.15, 0, 0] } : { bD: [-0.12, 0, 0.45], aD: [-0.15, 0, 0] });
+  let pose = null, poseLado = 1, poseK = 0, poseAlvo = 0, maoLado = 0, maoK = 0, maoAlvo = 0;
+  function poseCasal(nome, lado = 1) { if (nome) { pose = nome; poseLado = lado; poseAlvo = 1; } else poseAlvo = 0; }
+  function segurarMao(lado) { if (lado) { maoLado = lado; maoAlvo = 1; } else maoAlvo = 0; }
+  const mistura = (r, P, k, pular) => { for (const [m, v] of Object.entries(P)) { if (pular && pular.has(m)) continue; const b = r[m] || [0, 0, 0]; r[m] = b.map((x, i) => x + ((v[i] || 0) - x) * k); } };
   function aplicarAcao(t) {
-    if (!A && sentK === 0) return;
-    let r = {};
+    if (!A && sentK === 0 && poseK === 0 && maoK === 0) return;
+    let r = {}, doGesto = null;
     if (A) {
       let p = (t - A.t0) / A.dur, k = 1;
       if (A.fim != null) { k = 1 - sm((t - A.fim) / A.suave); if (k <= 0) p = 1; }
-      if (p >= 1) A = null; else { r = A.f(p, t - A.t0); if (k < 1) r = escala(r, k); }
+      if (p >= 1) A = null; else { r = A.f(p, t - A.t0); if (k < 1) r = escala(r, k); if (A.nome !== 'andar') doGesto = new Set(Object.keys(r)); }
     }
     if (sentK > 0) {      // pernas sempre sentadas; braços/tronco sentados se o gesto não os usa
       for (const m of ['pE', 'pD', 'cE', 'cD']) r[m] = (m[0] === 'c' ? [joelho, 0, 0] : POSE_SENTADO[m]).map((x) => x * sentK);
       for (const m of ['bE', 'bD', 'aE', 'aD', 'tr']) if (!r[m]) r[m] = POSE_SENTADO[m].map((x) => x * sentK);
       r.y = 0;
     }
+    if (poseK > 0 && pose) mistura(r, POSES[pose](poseLado), poseK, doGesto);      // um gesto feito na hora tem prioridade
+    if (maoK > 0 && maoLado) mistura(r, MAO(maoLado), maoK, null);
     for (const m of MEMBROS) poe(J[m], r[m] || [0, 0, 0]);
     for (const m of ['tr', 'cab', 'oE', 'oD']) if (r[m]) poe(J[m], r[m], true);
     gata.position.y = base.y + (r.y || 0); gata.rotation.y = base.ry + (r.ry || 0);
@@ -249,6 +263,8 @@ export function criarGato(gltf, { humorInicial = 'normal' } = {}) {
     dt = Math.min(dt, 0.1); relogio.elapsedTime += dt; const t = relogio.elapsedTime;
     mixer.update(dt);
     sentK += (sentAlvo - sentK) * (1 - Math.exp(-8 * dt)); if (Math.abs(sentAlvo - sentK) < 0.004) sentK = sentAlvo;
+    poseK += (poseAlvo - poseK) * (1 - Math.exp(-4 * dt)); if (Math.abs(poseAlvo - poseK) < 0.004) poseK = poseAlvo;
+    maoK += (maoAlvo - maoK) * (1 - Math.exp(-8 * dt)); if (Math.abs(maoAlvo - maoK) < 0.004) maoK = maoAlvo;
     if (humorAtual !== 'tchau') {
       const tt = t - t0, lento = H.lento || 1;
       // corpo "vivo": balança, respira; pula de alegria, treme de raiva ou roda de tontura
@@ -281,7 +297,7 @@ export function criarGato(gltf, { humorInicial = 'normal' } = {}) {
   return {
     modelo: gata,
     atualizar: quadro,          // atualizar(dt em segundos)
-    humor, expressao, acao, parar, sentar,
+    humor, expressao, acao, parar, sentar, poseCasal, segurarMao,
     nivelSentado: () => sentK,
     tem: (n) => !!rosto[n],
     acoes: Object.keys(ACOES),

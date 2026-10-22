@@ -71,6 +71,21 @@
   @media (hover: hover) { #escolha .cartao:hover { background: rgba(232,201,143,.14); border-color: rgba(232,201,143,.5); } }
   #escolha .cartao img { width: 100%; aspect-ratio: 300 / 340; object-fit: contain; border-radius: 12px; background: radial-gradient(circle at 50% 60%, rgba(232,201,143,.22), transparent 70%); }
   #escolha .cartao b { font-size: 15px; font-weight: 600; }
+  #btnMusica { font-size: 18px; width: 42px; height: 42px; padding: 0; border-radius: 12px; }
+  #btnMusica.on { color: var(--destaque); }
+  #btnSoltar { font-size: 14px; padding: 9px 14px; border-radius: 22px; color: #ffd3e0; border-color: rgba(255,160,190,.5); }
+  #musicaUI { position: fixed; right: 12px; top: max(64px, calc(env(safe-area-inset-top) + 52px)); width: min(280px, calc(100vw - 24px)); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; z-index: 4; }
+  #musicaUI[hidden], #pedidoUI[hidden] { display: none !important; }
+  #musicaUI small { font-size: 11px; color: var(--suave); letter-spacing: .06em; text-transform: uppercase; }
+  #musicaUI b { font-size: 14px; font-weight: 600; }
+  #musicaUI .linha, #pedidoUI .linha { display: flex; gap: 8px; justify-content: center; }
+  #musicaUI .linha button { min-width: 48px; font-size: 16px; }
+  #musicaUI button:disabled { opacity: .35; }
+  #musicaUI .forte, #pedidoUI .forte { background: var(--destaque); color: #2a2830; border-color: transparent; font-weight: 600; }
+  #musicaUI .vol { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--suave); width: 100%; }
+  #musicaUI .vol input { flex: 1; accent-color: #e8c98f; }
+  #pedidoUI { position: fixed; left: 50%; top: max(110px, calc(env(safe-area-inset-top) + 98px)); transform: translateX(-50%); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; text-align: center; z-index: 6; width: min(320px, calc(100vw - 32px)); }
+  #pedidoUI p { margin: 0; font-size: 14px; }
   #aviso { position: fixed; left: 50%; top: max(110px, calc(env(safe-area-inset-top) + 98px)); transform: translateX(-50%); padding: 8px 14px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 86vw; text-align: center; }
   #aviso.on { opacity: 1; }
 </style>
@@ -93,12 +108,14 @@
 
 <div id="hud">
   <div id="quem" class="vidro"><span>Você é <b id="nomeGato">—</b></span><button id="btnOnline">Online</button></div>
+  <button id="btnMusica" class="vidro" aria-label="Música">♪</button>
 </div>
 <div id="zona" class="vidro"></div>
 
 <div id="joy"><small>Mover</small><div id="knob"></div></div>
 <div id="acoes">
   <button id="btnCima" class="vidro">Ver de cima</button>
+  <button id="btnSoltar" class="vidro" hidden>Soltar a mão</button>
   <button id="btnCasal" class="redondo" aria-label="Carinhos" hidden>❤</button>
   <button id="btnEmocoes" class="redondo" aria-label="Emoções e gestos">☺</button>
 </div>
@@ -108,12 +125,13 @@
 </div>
 <div id="casalPainel" class="vidro">
   <h3>Carinho entre vocês</h3>
-  <div class="grade"><button id="btnBeijo">Beijo</button><button id="btnAbraco">Abraço</button><button id="btnCarinho">Carinho</button></div>
+  <div class="grade"><button id="btnBeijo">Beijo</button><button id="btnAbraco">Abraço</button><button id="btnCarinho">Carinho</button><button id="btnMao">Dar a mão</button></div>
 </div>
 <div id="dica">WASD ou setas para andar · arraste para girar a câmera</div>
 
 <div id="quadroUI" class="vidro" hidden>
   <button id="btnSentar" hidden>Sentar</button>
+  <button id="btnVitrola" hidden>Vitrola</button>
   <button id="btnPerto">Ver de perto</button>
   <button id="btnFoto">Adicionar foto</button>
   <button id="btnRemover" hidden>Remover foto</button>
@@ -139,6 +157,17 @@
 <input type="file" id="arqFoto" accept="image/*" hidden>
 <button id="qAnt" class="redondo navq" aria-label="Quadro anterior" hidden>‹</button>
 <button id="qProx" class="redondo navq" aria-label="Próximo quadro" hidden>›</button>
+<div id="musicaUI" class="vidro" hidden>
+  <small>Tocando na vitrola</small>
+  <b id="nomeMusica">—</b>
+  <div class="linha"><button id="btnAnterior" aria-label="Anterior">⏮</button><button id="btnTocar" class="forte" aria-label="Tocar">▶</button><button id="btnProxima" aria-label="Próxima">⏭</button></div>
+  <label class="vol">Volume <input id="volMusica" type="range" min="0" max="1" step="0.05" value="0.3"></label>
+  <button id="btnFecharMusica">Fechar</button>
+</div>
+<div id="pedidoUI" class="vidro" hidden>
+  <p id="pedidoTexto">Quer te conduzir de mãos dadas.</p>
+  <div class="linha"><button id="btnAceitarMao" class="forte">Dar a mão</button><button id="btnRecusarMao">Agora não</button></div>
+</div>
 <div id="aviso" class="vidro"></div>
 
 <script>
@@ -148,8 +177,8 @@
   addEventListener('unhandledrejection',function(ev){mostrarErro((ev.reason&&ev.reason.message)||'erro');});
 </script>
 <script type="importmap">
-{ "imports": { "three": "./three.module.js?v=202610211911", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js?v=202610211911", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js?v=202610211911", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js?v=202610211911", "three/addons/utils/BufferGeometryUtils.js": "./BufferGeometryUtils.js?v=202610211911" } }
+{ "imports": { "three": "./three.module.js?v=202610212212", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js?v=202610212212", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js?v=202610212212", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js?v=202610212212", "three/addons/utils/BufferGeometryUtils.js": "./BufferGeometryUtils.js?v=202610212212" } }
 </script>
-<script type="module" src="./main.js?v=202610211911"></script>
+<script type="module" src="./main.js?v=202610212212"></script>
 </body>
 </html>
