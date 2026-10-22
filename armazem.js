@@ -1,6 +1,7 @@
-// Guarda as fotos dos quadros SÓ neste aparelho (IndexedDB do navegador).
-// Nada é enviado para internet nem para o GitHub. Ficam até você remover a foto
-// ou limpar os dados do site no navegador.
+// Guarda as fotos dos quadros SÓ nos aparelhos de vocês (IndexedDB do navegador).
+// Nada vai para o GitHub nem para servidor nenhum. No online, as fotos passam direto de um celular para o outro
+// e ficam guardadas nos dois. Cada registro tem a hora da mudança ("em"), para os dois celulares combinarem
+// qual é a versão mais nova de cada quadro. Foto removida vira um registro "apagado" (para a remoção valer nos dois).
 const BANCO = 'nosso-museu', LOJA = 'fotos';
 
 function abrir() {
@@ -13,6 +14,7 @@ function abrir() {
 const pedido = (rq) => new Promise((ok, erro) => { rq.onsuccess = () => ok(rq.result); rq.onerror = () => erro(rq.error); });
 const loja = (db, modo) => db.transaction(LOJA, modo).objectStore(LOJA);
 
-export async function todas() { const db = await abrir(); return pedido(loja(db, 'readonly').getAll()); }
-export async function salvar(id, blob) { const db = await abrir(); return pedido(loja(db, 'readwrite').put({ id, blob, em: Date.now() })); }
-export async function apagar(id) { const db = await abrir(); return pedido(loja(db, 'readwrite').delete(id)); }
+export async function todas() { const db = await abrir(); return pedido(loja(db, 'readonly').getAll()); }   // inclui os "apagados"
+export async function uma(id) { const db = await abrir(); return pedido(loja(db, 'readonly').get(id)); }
+export async function salvar(id, blob, em = Date.now()) { const db = await abrir(); return pedido(loja(db, 'readwrite').put({ id, blob, em })); }
+export async function apagar(id, em = Date.now()) { const db = await abrir(); return pedido(loja(db, 'readwrite').put({ id, apagado: true, em })); }

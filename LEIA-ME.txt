@@ -2,18 +2,24 @@ NOSSO MUSEU — como atualizar no GitHub
 1. No repositório, apague os arquivos antigos e envie TODOS os arquivos desta pasta (Add file > Upload files), soltos, sem pasta.
 2. Commit. Em Settings > Pages fica publicado (branch main, pasta raiz). Espere 1-2 minutos.
 
-MÚSICA
-- A vitrola fica no café. A música começa baixinho quando você escolhe o gatinho (o celular só deixa tocar depois de um toque).
-- Botão ♪ no canto de cima: tocar/pausar, anterior/próxima e volume. No online, tocar/pausar/trocar vale para os dois.
+MÚSICA (só na vitrola)
+- A vitrola fica no café. Chegue perto e toque em "Vitrola" para tocar/pausar, trocar e ajustar o volume.
+- O som sai da vitrola: mais alto perto, mais baixo longe, com eco de salão e abafado quando há parede no meio.
+- No online, tocar/pausar/trocar vale para os dois (cada um ouve conforme onde o seu gatinho está).
 - Para adicionar músicas: mande o arquivo MP3 (com direito de uso) e ele entra na lista da vitrola.
+
+DIA E NOITE
+- A luz das janelas segue o horário do aparelho: amanhecer, dia, pôr do sol e noite com estrelas.
 
 JOGAR ONLINE (cada um no seu celular)
 - Um toca em "Online" > "Criar sala" > "Enviar convite" e manda o link para o outro (ou o outro digita o código de 8 letras).
-- Quando conectar, cada um anda com o seu gatinho. Carinhos, mãos dadas, gestos, emoções, assentos e música aparecem nos dois.
+- Quando conectar, cada um anda com o seu gatinho. Carinhos, mãos dadas, gestos, emoções, assentos, música e fotos aparecem nos dois.
 - Funciona melhor com os dois no Wi-Fi. Em alguns 4G a conexão direta pode não abrir (limite da versão gratuita).
 - Como funciona: conexão direta entre os celulares (WebRTC). Só para se acharem, um recado passa pelo serviço público gratuito
   ntfy.sh, numa sala de código aleatório. Depois disso nada passa por servidor.
-- As FOTOS dos quadros NÃO passam entre os celulares: ficam só no aparelho de quem colocou.
+- FOTOS: com a opção "Compartilhar as fotos do museu" ligada (vem ligada), o museu é um só para os dois: qualquer um
+  coloca, troca ou tira fotos e a mudança vai direto para o outro celular. As fotos ficam guardadas nos dois aparelhos
+  (dá para ver depois, mesmo sem estar online). Elas NUNCA vão para o GitHub nem para servidor.
 
 DE MÃOS DADAS (como no Sky)
 - Perto do outro gatinho: ❤ > "Dar a mão". No online o outro recebe o pedido e escolhe "Dar a mão" ou "Agora não".

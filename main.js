@@ -2,15 +2,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { criarGato } from './gato.js?v=202610212212';
-import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610212212';
-import { criarOnline, codigoValido } from './online.js?v=202610212212';
-import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610212212';
-import { criarQuadros } from './quadros.js?v=202610212212';
-import { construirMobilia } from './mobilia.js?v=202610212212';
-import { construirDecoracao } from './decoracao.js?v=202610212212';
-import { criarRecepcionista } from './recepcionista.js?v=202610212212';
-import * as armazem from './armazem.js?v=202610212212';
+import { criarGato } from './gato.js?v=202610212251';
+import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610212251';
+import { criarOnline, codigoValido } from './online.js?v=202610212251';
+import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610212251';
+import { criarQuadros } from './quadros.js?v=202610212251';
+import { construirMobilia } from './mobilia.js?v=202610212251';
+import { construirDecoracao } from './decoracao.js?v=202610212251';
+import { criarRecepcionista } from './recepcionista.js?v=202610212251';
+import * as armazem from './armazem.js?v=202610212251';
 
 const ALTURA_GATO = 1.3;      // altura do gato no jogo, em metros
 const RAIO = 0.38;            // "tamanho" do gato para colisões
@@ -163,6 +163,42 @@ addEventListener('keydown', (e) => { if (e.code === 'KeyE' && !e.repeat) alterna
 
 // ---------- fotos nos quadros ----------
 let quadroAtual = null, tAviso = 0;
+// fotos do museu: ficam guardadas só nos celulares de vocês. No online, os dois colocam/trocam/removem
+// e a mudança vai direto para o outro celular (a mais nova vence). Nunca vão para o GitHub.
+const fotosLocais = new Set(), versao = new Map();          // versao: id -> hora da última mudança (inclui remoções)
+const lerOpcao = () => { try { return localStorage.getItem('museu-mostrar-fotos') !== 'nao'; } catch { return true; } };
+const compartilhando = () => online.conectado() && $('chkFotos').checked;
+async function enviarLista() {               // "estas são as fotos que eu tenho (e quando mudaram)"
+  if (!compartilhando()) return;
+  try { const itens = (await armazem.todas()).map((r) => ({ id: r.id, em: r.em || 1, a: r.apagado ? 1 : 0 })); online.avisoFotos({ t: 'fm', itens: itens.slice(0, 300) }); } catch { /* sem fotos */ }
+}
+async function avisoDeFotos(m) {             // lista do outro: pede o que for mais novo lá; aplica remoções mais novas
+  if (!$('chkFotos').checked) return;
+  if (m.t === 'fq' && typeof m.id === 'string' && fotosLocais.has(m.id)) {
+    try { const r = await armazem.uma(m.id); if (r && r.blob) online.enviarFoto(r.id, r.blob, r.em || 1); } catch { /* ok */ }
+    return;
+  }
+  if (m.t !== 'fm' || !Array.isArray(m.itens)) return;
+  for (const it of m.itens.slice(0, 300)) {
+    if (!it || typeof it.id !== 'string' || !quadros.porId(it.id) || !Number.isFinite(it.em)) continue;
+    if (it.em <= (versao.get(it.id) || 0)) continue;
+    if (it.a === 1) aplicarRemocao(it.id, it.em); else online.avisoFotos({ t: 'fq', id: it.id });
+  }
+}
+async function receberFoto(id, blob, em) {   // foto (ou remoção) vinda do outro celular: conferida antes de aparecer
+  const q = quadros.porId(id); if (!q || !$('chkFotos').checked || !Number.isFinite(em) || em <= (versao.get(id) || 0)) return;
+  if (!blob) { aplicarRemocao(id, em); return; }
+  if (blob.size > 4 * 1024 * 1024) return;
+  let bmp; try { bmp = await createImageBitmap(blob); } catch { return; }
+  if (bmp.width > 4096 || bmp.height > 4096) { bmp.close?.(); return; }
+  quadros.colocarFoto(q, bmp); fotosLocais.add(id); versao.set(id, em); rotularQuadro();
+  try { await armazem.salvar(id, blob, em); } catch { /* aparece, mas não guardou */ }
+}
+function aplicarRemocao(id, em) {
+  const q = quadros.porId(id); if (!q) return;
+  quadros.limparFoto(q); fotosLocais.delete(id); versao.set(id, em); rotularQuadro();
+  armazem.apagar(id, em).catch(() => {});
+}
 function aviso(txt) { $('aviso').textContent = txt; $('aviso').classList.add('on'); clearTimeout(tAviso); tAviso = setTimeout(() => $('aviso').classList.remove('on'), 3500); }
 function rotularQuadro() {
   const q = quadroAtual; const sent = !!eu().assento;
@@ -172,7 +208,9 @@ function rotularQuadro() {
   for (const id of ['btnPerto', 'btnFoto']) $(id).hidden = !q;
   $('notaFoto').hidden = !q;
   if (!q) { $('btnRemover').hidden = true; return; }
-  $('btnFoto').textContent = q.temFoto ? 'Trocar foto' : 'Adicionar foto'; $('btnRemover').hidden = !q.temFoto;
+  const tem = fotosLocais.has(q.id);
+  $('btnFoto').textContent = tem ? 'Trocar foto' : 'Adicionar foto'; $('btnRemover').hidden = !tem;
+  $('notaFoto').textContent = online.conectado() && $('chkFotos').checked ? 'Fica guardada nos celulares de vocês dois (nunca no GitHub).' : 'A foto fica guardada neste aparelho (nunca no GitHub).';
 }
 function atualizarQuadro() {
   const q = zoomQ || (cima ? null : quadros.perto(eu().x, eu().z, eu().yaw));
@@ -197,18 +235,23 @@ $('arqFoto').addEventListener('change', async (e) => {
   if (!arquivo || !q) return;
   try {
     const { tela, blob } = await prepararFoto(arquivo);
-    quadros.colocarFoto(q, tela); rotularQuadro();
-    try { await armazem.salvar(q.id, blob); } catch { aviso('A foto aparece, mas não deu para guardar neste aparelho.'); }
+    const em = Date.now(); quadros.colocarFoto(q, tela); fotosLocais.add(q.id); versao.set(q.id, em); rotularQuadro();
+    if (compartilhando()) online.enviarFoto(q.id, blob, em);
+    try { await armazem.salvar(q.id, blob, em); } catch { aviso('A foto aparece, mas não deu para guardar neste aparelho.'); }
   } catch { aviso('Não consegui abrir essa imagem.'); }
 });
 $('btnRemover').addEventListener('click', async () => {
   const q = quadroAtual; if (!q) return;
-  quadros.limparFoto(q); rotularQuadro();
-  try { await armazem.apagar(q.id); } catch { /* sem problema: só não estava guardada */ }
+  const em = Date.now(); fotosLocais.delete(q.id); versao.set(q.id, em); quadros.limparFoto(q); rotularQuadro();
+  if (compartilhando()) online.removerFoto(q.id, em);
+  try { await armazem.apagar(q.id, em); } catch { /* sem problema: só não estava guardada */ }
 });
 (async () => {       // recoloca as fotos guardadas neste aparelho
   try {
-    for (const { id, blob } of await armazem.todas()) { const q = quadros.porId(id); if (q) quadros.colocarFoto(q, await createImageBitmap(blob)); }
+    for (const r of await armazem.todas()) {
+      versao.set(r.id, r.em || 1); const q = quadros.porId(r.id);
+      if (q && r.blob && !r.apagado) { quadros.colocarFoto(q, await createImageBitmap(r.blob)); fotosLocais.add(r.id); }
+    }
     rotularQuadro();
   } catch (erro) { console.warn('fotos guardadas indisponíveis', erro); }
 })();
@@ -327,12 +370,10 @@ function atualizarBotaoCasal() { const p = podeCasal(); if (p !== podiaCasal) { 
 function rotularMusica() {
   $('nomeMusica').textContent = tocador.nome(); $('btnTocar').textContent = tocador.tocando() ? '❚❚' : '▶';
   $('btnTocar').setAttribute('aria-label', tocador.tocando() ? 'Pausar' : 'Tocar');
-  $('btnMusica').classList.toggle('on', tocador.tocando());
   const varias = MUSICAS.length > 1; $('btnAnterior').disabled = !varias; $('btnProxima').disabled = !varias;
 }
-const tocador = criarTocador('./', { aoMudar: () => rotularMusica() });
+const tocador = criarTocador('./', { origem: { x: vitrola.x, y: 0.85, z: vitrola.z }, aoMudar: () => rotularMusica() });
 const avisarMusica = () => online.enviar({ t: 'mu', i: tocador.indice(), on: tocador.tocando() ? 1 : 0 });
-$('btnMusica').addEventListener('click', () => { $('musicaUI').hidden = !$('musicaUI').hidden; });
 $('btnVitrola').addEventListener('click', () => { $('musicaUI').hidden = false; });
 $('btnFecharMusica').addEventListener('click', () => { $('musicaUI').hidden = true; });
 $('btnTocar').addEventListener('click', () => { tocador.alternar(); avisarMusica(); });
@@ -340,6 +381,27 @@ $('btnProxima').addEventListener('click', () => { tocador.proxima(); avisarMusic
 $('btnAnterior').addEventListener('click', () => { tocador.anterior(); avisarMusica(); });
 $('volMusica').addEventListener('input', (e) => tocador.volume(+e.target.value));
 rotularMusica();
+addEventListener('pointerdown', () => tocador.destravar(), { passive: true });     // celulares só liberam som depois de um toque
+// som de ambiente: onde você está em relação à vitrola, e se tem parede no meio
+const raioSom = new THREE.Raycaster(), vOuv = new THREE.Vector3(), vDir = new THREE.Vector3();
+let paredeNoMeio = false, tParede = 0;
+function atualizarSom(dt) {
+  const p = eu(), ouv = { x: p.x, y: 1.0, z: p.z };
+  if ((tParede -= dt) <= 0) {
+    tParede = 0.3; vOuv.set(ouv.x, 1.0, ouv.z); vDir.set(vitrola.x - ouv.x, 0, vitrola.z - ouv.z); const d = vDir.length();
+    if (d > 0.01) { raioSom.set(vOuv, vDir.normalize()); raioSom.far = d - 0.3; paredeNoMeio = raioSom.intersectObjects(salao.paredes.children, true).length > 0; }
+  }
+  camera.getWorldDirection(vDir);
+  tocador.ouvir(ouv, { x: vDir.x, z: vDir.z }, paredeNoMeio);
+  if (!$('musicaUI').hidden && Math.hypot(p.x - vitrola.x, p.z - vitrola.z) > 3.2) $('musicaUI').hidden = true;   // o painel é da vitrola
+}
+
+// ---------- o dia passa de verdade: a luz segue o horário do aparelho ----------
+let horaFixa = null, tHora = 0;
+function atualizarHora(dt) {
+  if ((tHora -= dt) > 0) return; tHora = 15;
+  const agora = new Date(); salao.horario(horaFixa ?? agora.getHours() + agora.getMinutes() / 60);
+}
 
 // ---------- sentados juntinhos: pose de casal automática ----------
 const ladoDe = (j, o) => { const dx = o.x - j.x, dz = o.z - j.z, v = dx * Math.cos(j.yaw) - dz * Math.sin(j.yaw); return v < 0 ? -1 : 1; };
@@ -450,10 +512,13 @@ const online = criarOnline({
   aoAbrir: (papel) => {
     clearTimeout(tConectando); $('onlineUI').hidden = true; alvoRemoto = null; atualizarOnlineUI();
     if (papel === 'anfitriao') { online.enviar({ t: 'ola', gato: ativo }); avisarMusica(); }
+    enviarLista(); rotularQuadro();
     aviso('Conectados! Agora cada um anda com o seu gatinho.');
   },
   aoMensagem: receber,
-  aoFechar: () => { terminarMaos(false); $('pedidoUI').hidden = true; alvoRemoto = null; const r = outro(); if (r.andando) { r.gato.parar(0.25); r.andando = false; } aviso('A conexão caiu. Dá para criar a sala de novo.'); atualizarOnlineUI(); },
+  aoFoto: receberFoto,
+  aoFotoAviso: avisoDeFotos,
+  aoFechar: () => { rotularQuadro(); terminarMaos(false); $('pedidoUI').hidden = true; alvoRemoto = null; const r = outro(); if (r.andando) { r.gato.parar(0.25); r.andando = false; } aviso('A conexão caiu. Dá para criar a sala de novo.'); atualizarOnlineUI(); },
   aoStatus: (st) => { $('onEstado').textContent = TEXTO_ON[st] || ''; if (st === 'falhou') aviso(TEXTO_ON.falhou); },
 });
 function atualizarOnlineUI() {
@@ -477,6 +542,13 @@ $('btnConvite').addEventListener('click', async () => {
   const url = `${location.origin}${location.pathname}?sala=${online.codigo()}`;
   try { if (navigator.share) { await navigator.share({ title: 'Nosso Museu', text: 'Vem passear comigo no nosso museu 💕', url }); return; } } catch { /* cancelou */ return; }
   try { await navigator.clipboard.writeText(url); aviso('Link do convite copiado!'); } catch { aviso(url); }
+});
+$('chkFotos').checked = lerOpcao();
+$('chkFotos').addEventListener('change', async (e) => {
+  try { localStorage.setItem('museu-mostrar-fotos', e.target.checked ? 'sim' : 'nao'); } catch { /* ok */ }
+  if (!online.conectado()) return;
+  if (e.target.checked) enviarLista();
+  rotularQuadro();
 });
 $('btnSairOnline').addEventListener('click', () => { online.sair(); clearTimeout(tConectando); alvoRemoto = null; $('onInicio').hidden = false; $('onSala').hidden = true; atualizarOnlineUI(); });
 {   // entrou pelo link do convite (?sala=CODIGO)
@@ -574,7 +646,7 @@ function passo(dt) {
   recep.atualizar(dt, jogadores);
   for (const j of jogadores) if (j !== eu() && j.assento) acomodar(j, dt);
   for (const j of jogadores) { j.gato.atualizar(dt); j.grupo.position.y = j.altSent * j.gato.nivelSentado() + alturaCasal(j); }
-  atualizarCoracoes(dt); atualizarBotaoCasal(); enviarEstado(dt); atualizarPosesCasal(); vitrola.atualizar(dt, tocador.tocando());
+  atualizarCoracoes(dt); atualizarBotaoCasal(); enviarEstado(dt); atualizarPosesCasal(); vitrola.atualizar(dt, tocador.tocando()); atualizarSom(dt); atualizarHora(dt);
   atualizarCamera(dt); atualizarZona(dt); atualizarQuadro();
 }
 renderer.setAnimationLoop(() => { passo(relogio.getDelta()); renderer.render(cena, camera); });
@@ -599,7 +671,7 @@ function retratos() {          // foto de cada gatinho para os cartões (desenha
 }
 let escolhendo = true;
 function fecharEscolha(i) {
-  if (escolhendo) { escolhendo = false; tocador.tocar(); $('escolha').classList.add('fim'); setTimeout(() => { $('escolha').hidden = true; }, 600); }
+  if (escolhendo) { escolhendo = false; $('escolha').classList.add('fim'); setTimeout(() => { $('escolha').hidden = true; }, 600); }
   if (i !== ativo) definirGatos(i); else atualizarNome();
 }
 {
@@ -615,7 +687,7 @@ $('carregando').classList.add('fim');
 
 // gancho para testes automáticos
 window.museu = {
-  jogadores, cam, salao, mobilia, recep, online, tocador, maos: () => maos, pedirMao, soltarMaos, iniciarMaos, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
+  jogadores, cam, salao, mobilia, recep, online, tocador, fotosLocais, hora: (h) => { horaFixa = h; tHora = 0; }, maos: () => maos, pedirMao, soltarMaos, iniciarMaos, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
   ativo: () => ativo,
   colocar(x, z, yaw) { const p = eu(); p.x = x; p.z = z; if (yaw != null) p.yaw = yaw; p.grupo.position.set(x, 0, z); p.grupo.rotation.y = p.yaw; camera.position.set(x + Math.sin(cam.yaw) * cam.dist, 2.4, z + Math.cos(cam.yaw) * cam.dist); },
   cima(on) { if (on !== cima) $('btnCima').click(); },

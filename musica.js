@@ -1,32 +1,71 @@
 // Vitrola: o móvel com o toca-discos (no café) e o tocador de música do jogo.
 // A música toca baixinho, em loop. Para acrescentar músicas, é só pôr o arquivo na lista abaixo.
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from './RoundedBoxGeometry.js?v=202610212212';
+import { RoundedBoxGeometry } from './RoundedBoxGeometry.js?v=202610212251';
 
 export const MUSICAS = [
   { arquivo: 'sunlight_on_polished_stone.mp3', nome: 'Sunlight on Polished Stone' },
 ];
-const VOLUME_PADRAO = 0.3;
+const VOLUME_PADRAO = 0.6;
 
-export function criarTocador(pasta, { aoMudar } = {}) {
-  const audio = new Audio(); audio.preload = 'none'; audio.volume = VOLUME_PADRAO;
-  let i = 0, querTocar = false;
+// eco de sala (feito na hora, sem arquivo): um "ruído" que vai sumindo
+function impulsoSala(ctx, seg = 2.3, queda = 3) {
+  const n = Math.floor(ctx.sampleRate * seg), buf = ctx.createBuffer(2, n, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, queda); }
+  return buf;
+}
+
+// Tocador com som de ambiente: a música sai da vitrola. Perto fica mais alto, longe mais baixo,
+// com um eco suave de salão; com parede no meio, fica abafada.
+export function criarTocador(pasta, { origem, aoMudar } = {}) {
+  const audio = new Audio(); audio.preload = 'none'; audio.crossOrigin = 'anonymous';
+  let i = 0, querTocar = false, volume = VOLUME_PADRAO, ctx = null, no = null;
   const carregar = (n) => { i = ((n % MUSICAS.length) + MUSICAS.length) % MUSICAS.length; audio.src = pasta + MUSICAS[i].arquivo; audio.loop = MUSICAS.length === 1; };
   audio.addEventListener('ended', () => { if (MUSICAS.length > 1) { carregar(i + 1); tocar(); } });
   audio.addEventListener('play', () => aoMudar && aoMudar());
   audio.addEventListener('pause', () => aoMudar && aoMudar());
   carregar(0);
-  function tocar() { querTocar = true; const p = audio.play(); if (p) p.catch(() => { /* o celular só deixa tocar depois de um toque na tela */ }); aoMudar && aoMudar(); }
+
+  function prepararAudio() {             // precisa acontecer depois de um toque na tela (regra dos celulares)
+    if (ctx) { if (ctx.state === 'suspended') ctx.resume().catch(() => {}); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) { audio.volume = volume * 0.5; return; }
+    try {
+      ctx = new AC();
+      const fonte = ctx.createMediaElementSource(audio), painel = ctx.createPanner();
+      painel.panningModel = 'equalpower'; painel.distanceModel = 'linear'; painel.rolloffFactor = 0;   // só dá a direção; a distância controlamos abaixo
+      const pos = origem || { x: 0, y: 0.8, z: 0 };
+      if (painel.positionX) { painel.positionX.value = pos.x; painel.positionY.value = pos.y; painel.positionZ.value = pos.z; } else painel.setPosition(pos.x, pos.y, pos.z);
+      const abafar = ctx.createBiquadFilter(); abafar.type = 'lowpass'; abafar.frequency.value = 18000;
+      const seco = ctx.createGain(), eco = ctx.createConvolver(), molhado = ctx.createGain(), mestre = ctx.createGain();
+      eco.buffer = impulsoSala(ctx); seco.gain.value = 0; molhado.gain.value = 0; mestre.gain.value = volume;
+      fonte.connect(painel); painel.connect(abafar); abafar.connect(seco); seco.connect(mestre);
+      fonte.connect(eco); eco.connect(molhado); molhado.connect(mestre); mestre.connect(ctx.destination);
+      no = { abafar, seco, molhado, mestre };
+    } catch { ctx = null; audio.volume = volume * 0.5; }
+  }
+  function tocar() { querTocar = true; prepararAudio(); const p = audio.play(); if (p) p.catch(() => { /* espera o próximo toque na tela */ }); aoMudar && aoMudar(); }
   function pausar() { querTocar = false; audio.pause(); aoMudar && aoMudar(); }
+  const suave = (param, v) => { if (param.setTargetAtTime) param.setTargetAtTime(v, ctx.currentTime, 0.12); else param.value = v; };
   return {
     tocar, pausar,
     alternar() { if (audio.paused) tocar(); else pausar(); },
     proxima() { carregar(i + 1); if (querTocar) tocar(); else aoMudar && aoMudar(); },
     anterior() { carregar(i - 1); if (querTocar) tocar(); else aoMudar && aoMudar(); },
     ir(n, tocando) { if (n !== i) carregar(n); if (tocando) tocar(); else pausar(); },
-    volume(v) { audio.volume = Math.max(0, Math.min(1, v)); },
-    tocando: () => !audio.paused, indice: () => i, nome: () => MUSICAS[i].nome, volumeAtual: () => audio.volume,
-    retomarSeQueria() { if (querTocar && audio.paused) tocar(); },
+    volume(v) { volume = Math.max(0, Math.min(1, v)); if (no) suave(no.mestre.gain, volume); else audio.volume = volume * 0.5; },
+    destravar() { if (querTocar && audio.paused) tocar(); else if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); },
+    // ouvinte = onde está o seu gatinho; frente = para onde a câmera olha; parede = tem parede entre você e a vitrola
+    ouvir(ouvinte, frente, parede) {
+      if (!ctx || !no) return;
+      const L = ctx.listener;
+      if (L.positionX) { L.positionX.value = ouvinte.x; L.positionY.value = ouvinte.y; L.positionZ.value = ouvinte.z; L.forwardX.value = frente.x; L.forwardY.value = 0; L.forwardZ.value = frente.z; L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0; }
+      else { L.setPosition(ouvinte.x, ouvinte.y, ouvinte.z); L.setOrientation(frente.x, 0, frente.z, 0, 1, 0); }
+      const o = origem, d = Math.hypot(ouvinte.x - o.x, ouvinte.z - o.z), perto = 1.8 / (1.8 + 1.15 * Math.max(0, d - 1.8));
+      suave(no.seco.gain, perto * (parede ? 0.5 : 1));
+      suave(no.molhado.gain, 0.12 + 0.28 * perto);
+      suave(no.abafar.frequency, parede ? 900 : 18000);
+    },
+    tocando: () => !audio.paused, indice: () => i, nome: () => MUSICAS[i].nome, volumeAtual: () => volume,
   };
 }
 

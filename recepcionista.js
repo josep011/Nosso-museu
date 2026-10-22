@@ -1,7 +1,7 @@
 // Funcionário da recepção: o mesmo modelo do gatinho de terno, com pelagem laranja e branca
 // (padrão da foto de referência) e terno vinho. Fica em pé atrás do balcão; acena quando alguém chega perto.
 import * as THREE from 'three';
-import { criarGato } from './gato.js?v=202610212212';
+import { criarGato } from './gato.js?v=202610212251';
 
 const suave = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const FACE = /^(olhos|boca|extra|rosto)/;

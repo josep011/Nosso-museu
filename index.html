@@ -54,6 +54,8 @@
   #onlineUI p { margin: 0; font-size: 14px; }
   #onlineUI #onInicio, #onlineUI #onSala { display: flex; flex-direction: column; gap: 10px; }
   #onlineUI .suave { color: var(--suave); font-size: 13px; } #onlineUI .mini { font-size: 11.5px; line-height: 1.4; }
+  #onlineUI .opcao { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 13px; text-align: left; }
+  #onlineUI .opcao input { width: 18px; height: 18px; accent-color: #e8c98f; flex: none; }
   #onlineUI .linha { display: flex; gap: 8px; justify-content: center; }
   #onlineUI .forte { background: var(--destaque); color: #2a2830; border-color: transparent; font-weight: 600; padding: 10px 14px; }
   #codigoSala { flex: 1; min-width: 0; font: inherit; font-size: 18px; letter-spacing: .18em; text-align: center; text-transform: uppercase; padding: 8px; border-radius: 10px; border: 1px solid var(--borda); background: rgba(255,255,255,.1); color: var(--texto); user-select: text; -webkit-user-select: text; }
@@ -71,8 +73,6 @@
   @media (hover: hover) { #escolha .cartao:hover { background: rgba(232,201,143,.14); border-color: rgba(232,201,143,.5); } }
   #escolha .cartao img { width: 100%; aspect-ratio: 300 / 340; object-fit: contain; border-radius: 12px; background: radial-gradient(circle at 50% 60%, rgba(232,201,143,.22), transparent 70%); }
   #escolha .cartao b { font-size: 15px; font-weight: 600; }
-  #btnMusica { font-size: 18px; width: 42px; height: 42px; padding: 0; border-radius: 12px; }
-  #btnMusica.on { color: var(--destaque); }
   #btnSoltar { font-size: 14px; padding: 9px 14px; border-radius: 22px; color: #ffd3e0; border-color: rgba(255,160,190,.5); }
   #musicaUI { position: fixed; right: 12px; top: max(64px, calc(env(safe-area-inset-top) + 52px)); width: min(280px, calc(100vw - 24px)); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; z-index: 4; }
   #musicaUI[hidden], #pedidoUI[hidden] { display: none !important; }
@@ -108,7 +108,6 @@
 
 <div id="hud">
   <div id="quem" class="vidro"><span>Você é <b id="nomeGato">—</b></span><button id="btnOnline">Online</button></div>
-  <button id="btnMusica" class="vidro" aria-label="Música">♪</button>
 </div>
 <div id="zona" class="vidro"></div>
 
@@ -151,7 +150,8 @@
     <button id="btnConvite" class="forte">Enviar convite</button>
     <p id="onEstado">Esperando ela entrar…</p>
   </div>
-  <p class="suave mini">Funciona melhor com os dois no Wi-Fi. Só a posição, os gestos e os carinhos dos gatinhos passam entre os celulares; as fotos ficam em cada aparelho.</p>
+  <label class="opcao"><input type="checkbox" id="chkFotos" checked> Compartilhar as fotos do museu com quem entrar na sala</label>
+  <p class="suave mini">Funciona melhor com os dois no Wi-Fi. Vocês dois podem colocar, trocar e tirar fotos; elas vão direto de um celular para o outro e ficam guardadas só nos aparelhos de vocês — nunca no GitHub.</p>
   <div class="linha"><button id="btnSairOnline" hidden>Sair do online</button><button id="btnFecharOnline">Fechar</button></div>
 </div>
 <input type="file" id="arqFoto" accept="image/*" hidden>
@@ -161,7 +161,7 @@
   <small>Tocando na vitrola</small>
   <b id="nomeMusica">—</b>
   <div class="linha"><button id="btnAnterior" aria-label="Anterior">⏮</button><button id="btnTocar" class="forte" aria-label="Tocar">▶</button><button id="btnProxima" aria-label="Próxima">⏭</button></div>
-  <label class="vol">Volume <input id="volMusica" type="range" min="0" max="1" step="0.05" value="0.3"></label>
+  <label class="vol">Volume <input id="volMusica" type="range" min="0" max="1" step="0.05" value="0.6"></label>
   <button id="btnFecharMusica">Fechar</button>
 </div>
 <div id="pedidoUI" class="vidro" hidden>
@@ -177,8 +177,8 @@
   addEventListener('unhandledrejection',function(ev){mostrarErro((ev.reason&&ev.reason.message)||'erro');});
 </script>
 <script type="importmap">
-{ "imports": { "three": "./three.module.js?v=202610212212", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js?v=202610212212", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js?v=202610212212", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js?v=202610212212", "three/addons/utils/BufferGeometryUtils.js": "./BufferGeometryUtils.js?v=202610212212" } }
+{ "imports": { "three": "./three.module.js?v=202610212251", "three/addons/loaders/GLTFLoader.js": "./GLTFLoader.js?v=202610212251", "three/addons/environments/RoomEnvironment.js": "./RoomEnvironment.js?v=202610212251", "three/addons/geometries/RoundedBoxGeometry.js": "./RoundedBoxGeometry.js?v=202610212251", "three/addons/utils/BufferGeometryUtils.js": "./BufferGeometryUtils.js?v=202610212251" } }
 </script>
-<script type="module" src="./main.js?v=202610212212"></script>
+<script type="module" src="./main.js?v=202610212251"></script>
 </body>
 </html>

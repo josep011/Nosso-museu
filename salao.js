@@ -57,6 +57,11 @@ function texMadeira(cor, repX, repY) {       // textura de 1,2 m x 1,2 m, 6 táb
     }
   }, repX / 1.2, repY / 1.2);
 }
+function texEstrelas() {                       // pontinhos de estrela para a vista de noite
+  const c = document.createElement('canvas'); c.width = 2048; c.height = 512; const g = c.getContext('2d');
+  for (let i = 0; i < 260; i++) { const x = rnd() * 2048, y = rnd() * 330, r = rnd() < 0.85 ? 1.2 : 2.2; g.fillStyle = `rgba(255,250,235,${0.5 + rnd() * 0.5})`; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
 function texPaisagem() {                      // vista de fora pelas janelas (estilo brinquedo)
   const c = document.createElement('canvas'); c.width = 2048; c.height = 512; const g = c.getContext('2d');
   const ceu = g.createLinearGradient(0, 0, 0, 440); ceu.addColorStop(0, '#9fc6df'); ceu.addColorStop(1, '#eef3ee');
@@ -128,6 +133,10 @@ export function construirSalao(cena) {
   caixa(cur, 0, z0 - T, x1 + T, h, z0, matParede);
   const paisagem = new THREE.Mesh(new THREE.PlaneGeometry(80, 20), new THREE.MeshBasicMaterial({ map: texPaisagem(), toneMapped: false }));
   paisagem.position.set(0, 8.4, z0 - 20); cena.add(paisagem);
+  const estrelas = new THREE.Mesh(new THREE.PlaneGeometry(80, 20), new THREE.MeshBasicMaterial({ map: texEstrelas(), transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
+  estrelas.position.set(0, 8.4, z0 - 19.9); cena.add(estrelas);
+  const lua = new THREE.Mesh(new THREE.CircleGeometry(0.9, 32), new THREE.MeshBasicMaterial({ color: 0xfff6dc, transparent: true, opacity: 0, toneMapped: false }));
+  lua.position.set(-6, 12.5, z0 - 19.8); cena.add(lua);
 
   // ---------- rodapés das paredes externas ----------
   caixa(x0, 0, z1 - 0.03, x1, 0.14, z1, matRodape, paredes, false);
@@ -172,19 +181,48 @@ export function construirSalao(cena) {
   cena.add(corpo, brilho);
 
   // ---------- luzes ----------
-  cena.add(new THREE.HemisphereLight(0xfff6ea, 0xa89c8e, 1.35));
+  const hemi = new THREE.HemisphereLight(0xfff6ea, 0xa89c8e, 1.35); cena.add(hemi);
   const sol = new THREE.DirectionalLight(0xfff0d8, 2.6);       // entra pelas janelas do fundo
   sol.position.set(3, 14, -16); sol.target.position.set(0, 0, 0);
   sol.castShadow = true; sol.shadow.mapSize.set(2048, 2048);
   Object.assign(sol.shadow.camera, { left: -17, right: 17, top: 13, bottom: -13, near: 1, far: 45 });
   sol.shadow.bias = -0.0004; sol.shadow.normalBias = 0.03;
   cena.add(sol, sol.target);
+  const pontos = [];
   for (const [x, z] of [[-7.5, -5], [7.5, -6], [0, -2], [-7.5, 4], [7.5, 3], [0, 6.2]]) {
-    const l = new THREE.PointLight(0xffe2b8, 12, 14, 2); l.position.set(x, h - 0.5, z); cena.add(l);
+    const l = new THREE.PointLight(0xffe2b8, 12, 14, 2); l.position.set(x, h - 0.5, z); cena.add(l); pontos.push(l);
   }
+
+  // ---------- ciclo do dia: a luz segue o horário de verdade ----------
+  // sol = força da luz do sol (ou da lua), hemi = luz geral, pt = lâmpadas do salão, ceu = cor da vista, est = estrelas
+  const DIA = { sol: 2.6, sc: 0xfff0d8, hemi: 1.35, hc: 0xfff6ea, pt: 1.0, ceu: 0xffffff, env: 0.35, est: 0 };
+  const NOITE = { sol: 0.3, sc: 0x9fb4ff, hemi: 0.55, hc: 0xc9d3ff, pt: 1.3, ceu: 0x2b3454, env: 0.18, est: 1 };
+  const QUADROS = [[0, NOITE], [5.2, NOITE],
+    [6.4, { sol: 1.0, sc: 0xffc49a, hemi: 0.9, hc: 0xffe6d6, pt: 1.1, ceu: 0xffc4a6, env: 0.27, est: 0.15 }],
+    [8.5, DIA], [16.2, DIA],
+    [17.8, { sol: 1.9, sc: 0xffb070, hemi: 1.15, hc: 0xffe2c4, pt: 1.0, ceu: 0xffc493, env: 0.32, est: 0 }],
+    [19.0, { sol: 0.55, sc: 0xff8a6a, hemi: 0.78, hc: 0xe6c8d8, pt: 1.15, ceu: 0x8b6f96, env: 0.24, est: 0.35 }],
+    [20.4, NOITE], [24, NOITE]];
+  const ca = new THREE.Color(), cb = new THREE.Color();
+  const mix = (a, b, k) => ca.set(a).lerp(cb.set(b), k).getHex();
+  function horario(hora) {
+    hora = ((hora % 24) + 24) % 24;
+    let i = 0; while (hora > QUADROS[i + 1][0]) i++;
+    const [h0, A] = QUADROS[i], [h1, B] = QUADROS[i + 1], k = h1 > h0 ? (hora - h0) / (h1 - h0) : 0, n = (a, b) => a + (b - a) * k;
+    sol.intensity = n(A.sol, B.sol); sol.color.setHex(mix(A.sc, B.sc, k));
+    hemi.intensity = n(A.hemi, B.hemi); hemi.color.setHex(mix(A.hc, B.hc, k));
+    pontos.forEach((l) => { l.intensity = 12 * n(A.pt, B.pt); });
+    paisagem.material.color.setHex(mix(A.ceu, B.ceu, k)); estrelas.material.opacity = n(A.est, B.est); lua.material.opacity = n(A.est, B.est);
+    cena.environmentIntensity = n(A.env, B.env);
+    // o sol nasce de um lado e se põe do outro (sempre atrás das janelas); de noite a "lua" fica alta
+    const dia = hora >= 5.5 && hora <= 19.5, t = dia ? (hora - 5.5) / 14 : 0.5;
+    const ang = Math.PI * t; sol.position.set(16 * Math.cos(ang), 4 + 11 * Math.sin(ang), -16);
+    return { hora, noite: n(A.est, B.est) };
+  }
+  horario(12);
 
   // o teto some só para a câmera (continua fazendo sombra): útil na "vista de cima"
   const esconderTeto = (sim) => { matTeto.colorWrite = !sim; matTeto.depthWrite = !sim; corpo.visible = brilho.visible = !sim; trilhos.forEach((t) => { t.visible = !sim; }); };
 
-  return { colliders, paredes, teto, esconderTeto };
+  return { colliders, paredes, teto, esconderTeto, horario };
 }
