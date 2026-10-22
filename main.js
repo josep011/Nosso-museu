@@ -2,15 +2,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { criarGato } from './gato.js?v=202610212333';
-import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610212333';
-import { criarOnline, codigoValido } from './online.js?v=202610212333';
-import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610212333';
-import { criarQuadros } from './quadros.js?v=202610212333';
-import { construirMobilia } from './mobilia.js?v=202610212333';
-import { construirDecoracao } from './decoracao.js?v=202610212333';
-import { criarRecepcionista } from './recepcionista.js?v=202610212333';
-import * as armazem from './armazem.js?v=202610212333';
+import { criarGato } from './gato.js?v=202610212354';
+import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610212354';
+import { criarOnline, codigoValido } from './online.js?v=202610212354';
+import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610212354';
+import { criarQuadros } from './quadros.js?v=202610212354';
+import { construirMobilia } from './mobilia.js?v=202610212354';
+import { construirDecoracao } from './decoracao.js?v=202610212354';
+import { criarRecepcionista } from './recepcionista.js?v=202610212354';
+import * as armazem from './armazem.js?v=202610212354';
 
 const ALTURA_GATO = 1.3;      // altura do gato no jogo, em metros
 const RAIO = 0.38;            // "tamanho" do gato para colisões
@@ -21,12 +21,15 @@ const $ = (id) => document.getElementById(id);
 const renderer = new THREE.WebGLRenderer({ canvas: $('cena'), antialias: true, powerPreference: 'default' });
 // ---------- leveza: nitidez que se ajusta ao aparelho, sombras calculadas só quando a luz muda ----------
 const CELULAR = matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-const NITIDEZ_MAX = Math.min(window.devicePixelRatio || 1, CELULAR ? 1.5 : 2);   // acima disso o olho não vê diferença no celular
-let nitidez = NITIDEZ_MAX;
+// Modo "leve" (padrão no celular): 30 quadros/s, menos pixels e sombra mais simples. "Bonito": o máximo.
+const lerModo = () => { try { return localStorage.getItem('museu-modo'); } catch { return null; } };
+let modoLeve = (lerModo() || (CELULAR ? 'leve' : 'bonito')) === 'leve';
+const nitidezMax = () => Math.min(window.devicePixelRatio || 1, modoLeve ? 1.15 : (CELULAR ? 1.5 : 2));
+let nitidez = nitidezMax();
 renderer.setPixelRatio(nitidez);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = 'NeutralToneMapping' in THREE ? THREE.NeutralToneMapping : THREE.ACESFilmicToneMapping;
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = modoLeve ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true;     // o salão não se mexe: sombra recalculada só quando o sol muda
 const cena = new THREE.Scene(); cena.background = new THREE.Color(0xcfd8dc);
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -654,6 +657,16 @@ function passo(dt) {
   atualizarCoracoes(dt); atualizarBotaoCasal(); enviarEstado(dt); atualizarPosesCasal(); vitrola.atualizar(dt, tocador.tocando()); atualizarSom(dt); atualizarHora(dt);
   atualizarCamera(dt); atualizarZona(dt); atualizarQuadro();
 }
+function aplicarModo(leve) {
+  modoLeve = leve; try { localStorage.setItem('museu-modo', leve ? 'leve' : 'bonito'); } catch { /* ok */ }
+  nitidez = nitidezMax(); renderer.setPixelRatio(nitidez); ajustar();
+  renderer.shadowMap.type = leve ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap; renderer.shadowMap.needsUpdate = true;
+  cena.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.needsUpdate = true; }); });
+  $('btnModo').textContent = leve ? 'Leve' : 'Bonito'; $('btnModo').title = leve ? 'Modo leve: esquenta menos o celular' : 'Modo bonito: máximo de qualidade';
+}
+$('btnModo').addEventListener('click', () => { aplicarModo(!modoLeve); aviso(modoLeve ? 'Modo leve: o celular esquenta menos.' : 'Modo bonito: máximo de qualidade (esquenta mais no celular).'); });
+$('btnModo').textContent = modoLeve ? 'Leve' : 'Bonito';
+
 // sombrinha suave embaixo de cada gato (acompanha onde ele está)
 const texSombra = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
   const gr = g.createRadialGradient(32, 32, 2, 32, 32, 31); gr.addColorStop(0, 'rgba(0,0,0,0.42)'); gr.addColorStop(0.55, 'rgba(0,0,0,0.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
@@ -669,7 +682,7 @@ const algoMexendo = () => teclas.size > 0 || Math.hypot(joy.x, joy.y) > 0.05 || 
 let acumulado = 0, mediaQuadro = 16.7, tAjuste = 0;
 renderer.setAnimationLoop(() => {
   acumulado += relogio.getDelta();
-  const rapido = !CELULAR || algoMexendo(), alvo = rapido ? 1 / 62 : 1 / 31;
+  const rapido = !modoLeve && (!CELULAR || algoMexendo()), alvo = rapido ? 1 / 62 : 1 / 31;
   if (acumulado < alvo) return;
   const dt = acumulado; acumulado = 0;
   passo(dt); atualizarSombras(); renderer.render(cena, camera);
@@ -679,7 +692,7 @@ renderer.setAnimationLoop(() => {
     if ((tAjuste += dt) > 2) {
       tAjuste = 0; let nova = nitidez;
       if (mediaQuadro > 26 && nitidez > 1) nova = Math.max(1, nitidez - 0.15);
-      else if (mediaQuadro < 18 && nitidez < NITIDEZ_MAX) nova = Math.min(NITIDEZ_MAX, nitidez + 0.1);
+      else if (mediaQuadro < 18 && nitidez < nitidezMax()) nova = Math.min(nitidezMax(), nitidez + 0.1);
       if (nova !== nitidez) { nitidez = nova; renderer.setPixelRatio(nitidez); ajustar(); }
     }
   }
@@ -721,7 +734,7 @@ $('carregando').classList.add('fim');
 
 // gancho para testes automáticos
 window.museu = {
-  jogadores, cam, salao, mobilia, recep, online, tocador, fotosLocais, hora: (h) => { horaFixa = h; tHora = 0; }, maos: () => maos, pedirMao, soltarMaos, iniciarMaos, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
+  jogadores, cam, salao, mobilia, recep, online, tocador, modo: (leve) => aplicarModo(leve), fotosLocais, hora: (h) => { horaFixa = h; tHora = 0; }, maos: () => maos, pedirMao, soltarMaos, iniciarMaos, casal: (t) => iniciarCasal(t), emCasal: () => casal && casal.fase, sentar: (i = ativo) => { const p = jogadores[i]; sentar(p, acharAssento(p)); rotularQuadro(); }, levantar: (i = ativo) => { levantar(jogadores[i]); rotularQuadro(); }, THREE, camera, quadros, quadroAtual: () => quadroAtual,
   ativo: () => ativo,
   colocar(x, z, yaw) { const p = eu(); p.x = x; p.z = z; if (yaw != null) p.yaw = yaw; p.grupo.position.set(x, 0, z); p.grupo.rotation.y = p.yaw; camera.position.set(x + Math.sin(cam.yaw) * cam.dist, 2.4, z + Math.cos(cam.yaw) * cam.dist); },
   cima(on) { if (on !== cima) $('btnCima').click(); },
@@ -733,6 +746,6 @@ window.museu = {
     const gl = renderer.getContext(); let t0 = performance.now();
     for (let i = 0; i < n; i++) { passo(1 / 60); atualizarSombras(); renderer.render(cena, camera); }
     gl.finish(); const ms = (performance.now() - t0) / n; const r = renderer.info.render;
-    return { ms: +ms.toFixed(1), desenhos: r.calls, triangulos: r.triangles, luzes: cena.children.filter((o) => o.isLight).length, px: renderer.getPixelRatio() };
+    return { modo: modoLeve ? 'leve' : 'bonito', ms: +ms.toFixed(1), desenhos: r.calls, triangulos: r.triangles, luzes: cena.children.filter((o) => o.isLight).length, px: renderer.getPixelRatio() };
   },
 };

@@ -8,8 +8,12 @@ MÚSICA (só na vitrola)
 - No online, tocar/pausar/trocar vale para os dois (cada um ouve conforme onde o seu gatinho está).
 - Para adicionar músicas: mande o arquivo MP3 (com direito de uso) e ele entra na lista da vitrola.
 
+MODO LEVE / BONITO
+- Botão no topo ("Leve"/"Bonito"). No celular começa no Leve: 30 quadros por segundo, menos pixels e sombra mais simples
+  (esquenta bem menos). O Bonito usa o máximo de qualidade (bom no computador ou com o celular carregando).
+
 DIA E NOITE
-- A luz das janelas segue o horário do aparelho: amanhecer, dia, pôr do sol e noite com estrelas.
+- A luz das janelas segue o horário do aparelho: amanhecer, dia, pôr do sol e noite com estrelas (o museu segue aceso por dentro).
 
 JOGAR ONLINE (cada um no seu celular)
 - Um toca em "Online" > "Criar sala" > "Enviar convite" e manda o link para o outro (ou o outro digita o código de 8 letras).

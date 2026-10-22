@@ -1,7 +1,7 @@
 // Vitrola: o móvel com o toca-discos (no café) e o tocador de música do jogo.
 // A música toca baixinho, em loop. Para acrescentar músicas, é só pôr o arquivo na lista abaixo.
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from './RoundedBoxGeometry.js?v=202610212333';
+import { RoundedBoxGeometry } from './RoundedBoxGeometry.js?v=202610212354';
 
 export const MUSICAS = [
   { arquivo: 'sunlight_on_polished_stone.mp3', nome: 'Sunlight on Polished Stone' },
