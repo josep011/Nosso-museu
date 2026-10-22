@@ -2,15 +2,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { criarGato } from './gato.js?v=202610212251';
-import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610212251';
-import { criarOnline, codigoValido } from './online.js?v=202610212251';
-import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610212251';
-import { criarQuadros } from './quadros.js?v=202610212251';
-import { construirMobilia } from './mobilia.js?v=202610212251';
-import { construirDecoracao } from './decoracao.js?v=202610212251';
-import { criarRecepcionista } from './recepcionista.js?v=202610212251';
-import * as armazem from './armazem.js?v=202610212251';
+import { criarGato } from './gato.js?v=202610212333';
+import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610212333';
+import { criarOnline, codigoValido } from './online.js?v=202610212333';
+import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610212333';
+import { criarQuadros } from './quadros.js?v=202610212333';
+import { construirMobilia } from './mobilia.js?v=202610212333';
+import { construirDecoracao } from './decoracao.js?v=202610212333';
+import { criarRecepcionista } from './recepcionista.js?v=202610212333';
+import * as armazem from './armazem.js?v=202610212333';
 
 const ALTURA_GATO = 1.3;      // altura do gato no jogo, em metros
 const RAIO = 0.38;            // "tamanho" do gato para colisões
@@ -18,11 +18,16 @@ const VELOCIDADE = 2.4;       // m/s
 const $ = (id) => document.getElementById(id);
 
 // ---------- cena ----------
-const renderer = new THREE.WebGLRenderer({ canvas: $('cena'), antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const renderer = new THREE.WebGLRenderer({ canvas: $('cena'), antialias: true, powerPreference: 'default' });
+// ---------- leveza: nitidez que se ajusta ao aparelho, sombras calculadas só quando a luz muda ----------
+const CELULAR = matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const NITIDEZ_MAX = Math.min(window.devicePixelRatio || 1, CELULAR ? 1.5 : 2);   // acima disso o olho não vê diferença no celular
+let nitidez = NITIDEZ_MAX;
+renderer.setPixelRatio(nitidez);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = 'NeutralToneMapping' in THREE ? THREE.NeutralToneMapping : THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true;     // o salão não se mexe: sombra recalculada só quando o sol muda
 const cena = new THREE.Scene(); cena.background = new THREE.Color(0xcfd8dc);
 const pmrem = new THREE.PMREMGenerator(renderer);
 cena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; cena.environmentIntensity = 0.35;
@@ -47,7 +52,7 @@ function criarJogador(gltf, nome, spawn, extra = {}) {
   const esc = ALTURA_GATO / (caixa.max.y - caixa.min.y);
   const interno = new THREE.Group(); interno.scale.setScalar(esc); interno.position.y = -caixa.min.y * esc; interno.add(gato.modelo);
   const grupo = new THREE.Group(); grupo.add(interno); cena.add(grupo);
-  gato.modelo.traverse((o) => { if (o.isMesh) { o.castShadow = !FACE.test(o.name); o.receiveShadow = false; } });
+  gato.modelo.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });     // a sombra dos gatos é a sombrinha suave no chão
   grupo.position.set(spawn.x, 0, spawn.z); grupo.rotation.y = spawn.yaw;
   grupo.updateMatrixWorld(true);       // altura do quadril em pé (para encaixar no assento ao sentar)
   const perna = gato.modelo.getObjectByName('perna_esq'); const vq = new THREE.Vector3();
@@ -400,7 +405,7 @@ function atualizarSom(dt) {
 let horaFixa = null, tHora = 0;
 function atualizarHora(dt) {
   if ((tHora -= dt) > 0) return; tHora = 15;
-  const agora = new Date(); salao.horario(horaFixa ?? agora.getHours() + agora.getMinutes() / 60);
+  const agora = new Date(); salao.horario(horaFixa ?? agora.getHours() + agora.getMinutes() / 60); renderer.shadowMap.needsUpdate = true;
 }
 
 // ---------- sentados juntinhos: pose de casal automática ----------
@@ -649,7 +654,36 @@ function passo(dt) {
   atualizarCoracoes(dt); atualizarBotaoCasal(); enviarEstado(dt); atualizarPosesCasal(); vitrola.atualizar(dt, tocador.tocando()); atualizarSom(dt); atualizarHora(dt);
   atualizarCamera(dt); atualizarZona(dt); atualizarQuadro();
 }
-renderer.setAnimationLoop(() => { passo(relogio.getDelta()); renderer.render(cena, camera); });
+// sombrinha suave embaixo de cada gato (acompanha onde ele está)
+const texSombra = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(32, 32, 2, 32, 32, 31); gr.addColorStop(0, 'rgba(0,0,0,0.42)'); gr.addColorStop(0.55, 'rgba(0,0,0,0.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const geoSombra = new THREE.PlaneGeometry(1, 1), matSombra = new THREE.MeshBasicMaterial({ map: texSombra, transparent: true, depthWrite: false });
+function sombrinha(x, z, r = 0.72) { const m = new THREE.Mesh(geoSombra, matSombra); m.rotation.x = -Math.PI / 2; m.scale.set(r, r, 1); m.position.set(x, 0.03, z); m.renderOrder = 1; cena.add(m); return m; }
+const sombras = jogadores.map((j) => sombrinha(j.x, j.z)); sombrinha(2.0, 7.0);
+function atualizarSombras() { jogadores.forEach((j, i) => sombras[i].position.set(j.x, 0.03, j.z)); }
+
+// ritmo: 60 quadros por segundo quando algo se mexe; no celular, 30 quando está tudo parado (economiza bateria e calor)
+const algoMexendo = () => teclas.size > 0 || Math.hypot(joy.x, joy.y) > 0.05 || !!arrasto || !!casal || !!maos || cima || coracoes.length > 0
+  || (zoomK > 0.001 && zoomK < 0.999) || jogadores.some((j) => j.andando) || camera.position.distanceToSquared(desejada) > 1e-4;
+let acumulado = 0, mediaQuadro = 16.7, tAjuste = 0;
+renderer.setAnimationLoop(() => {
+  acumulado += relogio.getDelta();
+  const rapido = !CELULAR || algoMexendo(), alvo = rapido ? 1 / 62 : 1 / 31;
+  if (acumulado < alvo) return;
+  const dt = acumulado; acumulado = 0;
+  passo(dt); atualizarSombras(); renderer.render(cena, camera);
+  // se o aparelho não está dando conta, baixa um pouco a nitidez; se sobra fôlego, volta a subir
+  if (rapido && dt < 0.25) {
+    mediaQuadro += (dt * 1000 - mediaQuadro) * 0.05;
+    if ((tAjuste += dt) > 2) {
+      tAjuste = 0; let nova = nitidez;
+      if (mediaQuadro > 26 && nitidez > 1) nova = Math.max(1, nitidez - 0.15);
+      else if (mediaQuadro < 18 && nitidez < NITIDEZ_MAX) nova = Math.min(NITIDEZ_MAX, nitidez + 0.1);
+      if (nova !== nitidez) { nitidez = nova; renderer.setPixelRatio(nitidez); ajustar(); }
+    }
+  }
+});
 
 // posição inicial da câmera atrás do gato
 { const p = eu(); cam.yaw = p.yaw - Math.PI; camera.position.set(p.x + Math.sin(cam.yaw) * 4, 2.4, p.z + Math.cos(cam.yaw) * 4); }
@@ -694,5 +728,11 @@ window.museu = {
   humor: (n) => fazerHumor(eu(), n), gesto: (n) => fazerGesto(eu(), n), trocar: () => definirGatos((ativo + 1) % jogadores.length), escolher: (i) => fecharEscolha(i),
   tick(dt = 1 / 60, n = 1) { for (let i = 0; i < n; i++) passo(dt); },
   pausar() { renderer.setAnimationLoop(null); },
-  png() { renderer.render(cena, camera); return renderer.domElement.toDataURL('image/png'); },
+  png() { atualizarSombras(); renderer.render(cena, camera); return renderer.domElement.toDataURL('image/png'); },
+  medir(n = 20) {       // teste de desempenho: tempo médio por quadro e quanto o celular desenha
+    const gl = renderer.getContext(); let t0 = performance.now();
+    for (let i = 0; i < n; i++) { passo(1 / 60); atualizarSombras(); renderer.render(cena, camera); }
+    gl.finish(); const ms = (performance.now() - t0) / n; const r = renderer.info.render;
+    return { ms: +ms.toFixed(1), desenhos: r.calls, triangulos: r.triangles, luzes: cena.children.filter((o) => o.isLight).length, px: renderer.getPixelRatio() };
+  },
 };

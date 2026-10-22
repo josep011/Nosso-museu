@@ -1,7 +1,7 @@
 // Funcionário da recepção: o mesmo modelo do gatinho de terno, com pelagem laranja e branca
 // (padrão da foto de referência) e terno vinho. Fica em pé atrás do balcão; acena quando alguém chega perto.
 import * as THREE from 'three';
-import { criarGato } from './gato.js?v=202610212251';
+import { criarGato } from './gato.js?v=202610212333';
 
 const suave = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const FACE = /^(olhos|boca|extra|rosto)/;
@@ -44,7 +44,7 @@ export function criarRecepcionista(gltf, cena, { x, z, yaw, altura = 1.3 }) {
   const caixa = new THREE.Box3().setFromObject(gato.modelo), esc = altura / (caixa.max.y - caixa.min.y);
   const interno = new THREE.Group(); interno.scale.setScalar(esc); interno.position.y = -caixa.min.y * esc; interno.add(gato.modelo);
   const grupo = new THREE.Group(); grupo.add(interno); cena.add(grupo);
-  gato.modelo.traverse((o) => { if (o.isMesh) { o.castShadow = !FACE.test(o.name); o.receiveShadow = false; } });
+  gato.modelo.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });   // sombrinha suave no chão (main.js)
   grupo.position.set(x, 0, z); grupo.rotation.y = yaw;
 
   const e = { yaw: yaw, perto: false, cd: 3, ocio: 6 + Math.random() * 6, humorT: 0 };

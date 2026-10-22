@@ -3,7 +3,7 @@
 // assentos a ~42 cm do chão, então as perninhas ficam balançando.
 // Devolve os assentos (onde os gatos podem sentar) e adiciona colisões ao salão.
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from './RoundedBoxGeometry.js?v=202610212251';
+import { RoundedBoxGeometry } from './RoundedBoxGeometry.js?v=202610212333';
 
 const COR = { claro: 0xd2ad7e, nogueira: 0x7b5638, preto: 0x1d1d20, creme: 0xeadfcd, salvia: 0x9fb394, rosa: 0xd7a79d,
               terracota: 0xc47b5a, azul: 0x8ba0ad, latao: 0xb89a5a, branco: 0xf4f1ea, bege: 0xd9cbb2 };
