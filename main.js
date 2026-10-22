@@ -2,17 +2,17 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { criarGato } from './gato.js?v=202610220905';
-import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610220905';
-import { criarOnline, codigoValido } from './online.js?v=202610220905';
-import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610220905';
-import { criarMural, MURAL } from './mural.js?v=202610220905';
-import { criarBuque, criarArranjo, criarVaso } from './buque.js?v=202610220905';
-import { criarQuadros } from './quadros.js?v=202610220905';
-import { construirMobilia } from './mobilia.js?v=202610220905';
-import { construirDecoracao } from './decoracao.js?v=202610220905';
-import { criarRecepcionista } from './recepcionista.js?v=202610220905';
-import * as armazem from './armazem.js?v=202610220905';
+import { criarGato } from './gato.js?v=202610220925';
+import { construirSalao, ZONAS, SPAWN, SALAO } from './salao.js?v=202610220925';
+import { criarOnline, codigoValido } from './online.js?v=202610220925';
+import { criarTocador, criarVitrola, MUSICAS } from './musica.js?v=202610220925';
+import { criarMural, MURAL } from './mural.js?v=202610220925';
+import { criarBuque, criarArranjo, criarVaso } from './buque.js?v=202610220925';
+import { criarQuadros } from './quadros.js?v=202610220925';
+import { construirMobilia } from './mobilia.js?v=202610220925';
+import { construirDecoracao } from './decoracao.js?v=202610220925';
+import { criarRecepcionista } from './recepcionista.js?v=202610220925';
+import * as armazem from './armazem.js?v=202610220925';
 
 const ALTURA_GATO = 1.3;      // altura do gato no jogo, em metros
 const RAIO = 0.38;            // "tamanho" do gato para colisões
@@ -501,75 +501,89 @@ $('btnAceitarMao').addEventListener('click', () => { $('pedidoUI').hidden = true
 $('btnRecusarMao').addEventListener('click', () => { $('pedidoUI').hidden = true; online.enviar({ t: 'mr' }); });
 addEventListener('keydown', (e) => { if (e.repeat || e.code !== 'KeyM') return; if (maos) soltarMaos(); else pedirMao(); });
 
-// ---------- buquê: ele oferece, ela recebe, cheira, leva e coloca no vaso ----------
-// estado compartilhado: b = 'nenhum' | 'oferecendo' | 'com_ela'; vaso = 1 quando há flores no vaso. Guardado no aparelho.
+// ---------- buquê: ele oferece, ela recebe, cheira, leva e coloca no vaso — quantas vezes quiserem ----------
+// estado compartilhado: of = ele está oferecendo; ela = ela está segurando um; vaso = há flores no vaso. Guardado no aparelho.
 const VASO = { x: -8.3, y: 0.425, z: 4.82 };                       // na mesa de centro da sala de estar
 const vasoObj = criarVaso(); vasoObj.position.set(VASO.x, VASO.y, VASO.z); cena.add(vasoObj);
 const arranjo = criarArranjo(); arranjo.position.set(VASO.x, VASO.y, VASO.z); arranjo.scale.setScalar(1.15); cena.add(arranjo);
-const buqueMao = criarBuque(); buqueMao.scale.setScalar(1.3); buqueMao.rotation.order = 'YXZ'; cena.add(buqueMao);
-const ESTADOS_BQ = ['nenhum', 'oferecendo', 'com_ela'];
-const BQ = (() => { try { const v = JSON.parse(localStorage.getItem('museu-buque') || 'null'); if (v && ESTADOS_BQ.includes(v.b) && (v.vaso === 0 || v.vaso === 1) && Number.isFinite(v.em)) return v; } catch { /* ok */ } return { b: 'nenhum', vaso: 0, em: 0 }; })();
+const buqueEle = criarBuque(), buqueEla = criarBuque();
+for (const b of [buqueEle, buqueEla]) { b.scale.setScalar(1.3); b.rotation.order = 'YXZ'; cena.add(b); }
+const BQ = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem('museu-buque') || 'null');
+    if (v && Number.isFinite(v.em)) {
+      if ('b' in v) return { of: v.b === 'oferecendo' ? 1 : 0, ela: v.b === 'com_ela' ? 1 : 0, vaso: v.vaso === 1 ? 1 : 0, n: 0, em: v.em };   // formato antigo
+      if ([v.of, v.ela, v.vaso].every((x) => x === 0 || x === 1)) return { ...v, n: Number.isInteger(v.n) && v.n >= 0 ? v.n : 0 };
+    }
+  } catch { /* ok */ }
+  return { of: 0, ela: 0, vaso: 0, n: 0, em: 0 };
+})();
 const ele = () => jogadores[0], ela = () => jogadores[1];
 let cheirando = 0, camBuque = 0, buqK = 0, tAutoReceber = 0;
 const patas = jogadores.map((j) => [j.gato.modelo.getObjectByName('pata_esq'), j.gato.modelo.getObjectByName('pata_dir')]);
 function salvarBQ() { try { localStorage.setItem('museu-buque', JSON.stringify(BQ)); } catch { /* ok */ } }
-function mudarBQ(b, vaso, enviar = true) {
-  const antes = BQ.b; BQ.b = b; BQ.vaso = vaso; BQ.em = Math.max(Date.now(), BQ.em + 1); salvarBQ(); aplicarBQ(antes);
-  if (enviar) online.enviar({ t: 'bq', b, vaso, em: BQ.em });
+function mudarBQ(novo, enviar = true) {
+  const antes = { ...BQ }; Object.assign(BQ, novo); BQ.em = Math.max(Date.now(), antes.em + 1); salvarBQ(); aplicarBQ(antes);
+  if (enviar) online.enviar({ t: 'bq', of: BQ.of, ela: BQ.ela, vaso: BQ.vaso, n: BQ.n, em: BQ.em });
 }
 function receberBQ(m) {
-  if (!ESTADOS_BQ.includes(m.b) || (m.vaso !== 0 && m.vaso !== 1) || !Number.isFinite(m.em) || m.em <= BQ.em) return;
-  const antes = BQ.b; BQ.b = m.b; BQ.vaso = m.vaso; BQ.em = m.em; salvarBQ(); aplicarBQ(antes);
+  const ok = (x) => x === 0 || x === 1;
+  if (!ok(m.of) || !ok(m.ela) || !ok(m.vaso) || !Number.isInteger(m.n) || m.n < 0 || !Number.isFinite(m.em) || m.em <= BQ.em) return;
+  const antes = { ...BQ }; Object.assign(BQ, { of: m.of, ela: m.ela, vaso: m.vaso, n: m.n, em: m.em }); salvarBQ(); aplicarBQ(antes);
 }
 function aplicarBQ(antes) {
-  buqueMao.visible = BQ.b !== 'nenhum'; arranjo.visible = BQ.vaso === 1;
-  ele().gato.segurarBuque(BQ.b === 'oferecendo' ? 'oferecer' : null);
-  ela().gato.segurarBuque(BQ.b === 'com_ela' ? (cheirando > 0 ? 'cheirar' : 'segurar') : null);
-  if (antes === 'oferecendo' && BQ.b === 'com_ela') {         // ela recebeu: carinha apaixonada e coraçõezinhos
+  buqueEle.visible = BQ.of === 1; buqueEla.visible = BQ.ela === 1; arranjo.visible = BQ.vaso === 1;
+  ele().gato.segurarBuque(BQ.of ? 'oferecer' : null);
+  ela().gato.segurarBuque(BQ.ela ? (cheirando > 0 ? 'cheirar' : 'segurar') : null);
+  if (antes && BQ.n > antes.n) {           // ela recebeu um buquê (de novo!)
     ela().gato.humor('apaixonada'); ele().gato.humor('feliz'); for (let i = 0; i < 6; i++) setTimeout(() => soltarCoracao(ela().x, ela().z), i * 180);
     clearTimeout(ela().tHumor); ela().tHumor = setTimeout(() => { ela().gato.humor('normal'); ele().gato.humor('normal'); }, 3500);
     if (eu() === ela()) aviso('Você recebeu um buquê 💐 Leve até o vaso da sala de estar quando quiser.');
   }
-  if (antes === 'com_ela' && BQ.b === 'nenhum' && BQ.vaso === 1) { for (let i = 0; i < 5; i++) setTimeout(() => soltarCoracao(VASO.x, VASO.z), i * 200); }
-  if (BQ.b !== 'com_ela') { cheirando = 0; camBuque = 0; }
+  if (antes && antes.ela === 1 && BQ.ela === 0 && BQ.vaso === 1) { for (let i = 0; i < 5; i++) setTimeout(() => soltarCoracao(VASO.x, VASO.z), i * 200); }
+  if (!BQ.ela) { cheirando = 0; camBuque = 0; }
   rotularBuque();
 }
 const pertoDeEla = () => Math.hypot(ele().x - ela().x, ele().z - ela().z) < 2.6;
 const pertoDoVaso = () => Math.hypot(eu().x - VASO.x, eu().z - VASO.z) < 1.5;
 function rotularBuque() {
   const souEle = eu() === ele(), souEla = eu() === ela();
-  $('btnBuque').hidden = !(souEle && BQ.b === 'nenhum');
-  $('btnGuardarBuque').hidden = !(souEle && BQ.b === 'oferecendo');
-  $('btnReceber').hidden = !(souEla && BQ.b === 'oferecendo' && pertoDeEla());
-  $('btnCheirar').hidden = !(souEla && BQ.b === 'com_ela');
-  $('btnVaso').hidden = !(souEla && BQ.b === 'com_ela' && pertoDoVaso());
+  $('btnBuque').hidden = !(souEle && !BQ.of);
+  $('btnGuardarBuque').hidden = !(souEle && BQ.of);
+  $('btnReceber').hidden = !(souEla && BQ.of && pertoDeEla());
+  $('btnCheirar').hidden = !(souEla && BQ.ela);
+  $('btnVaso').hidden = !(souEla && BQ.ela && pertoDoVaso());
 }
 $('btnBuque').addEventListener('click', () => {
-  if (eu() !== ele() || BQ.b !== 'nenhum') return;
+  if (eu() !== ele() || BQ.of) return;
   if (!pertoDeEla()) { aviso('Chegue pertinho dela para oferecer o buquê.'); return; }
-  $('casalPainel').classList.remove('on'); mudarBQ('oferecendo', BQ.vaso);
-  if (!online.conectado()) { clearTimeout(tAutoReceber); tAutoReceber = setTimeout(() => { if (BQ.b === 'oferecendo') mudarBQ('com_ela', BQ.vaso); }, 1600); }   // no mesmo aparelho, ela aceita sozinha
+  $('casalPainel').classList.remove('on'); mudarBQ({ of: 1 });
+  if (!online.conectado()) { clearTimeout(tAutoReceber); tAutoReceber = setTimeout(() => { if (BQ.of) mudarBQ({ of: 0, ela: 1, n: BQ.n + 1 }); }, 1600); }   // no mesmo aparelho, ela aceita sozinha
 });
-$('btnGuardarBuque').addEventListener('click', () => { if (BQ.b === 'oferecendo') mudarBQ('nenhum', BQ.vaso); });
-$('btnReceber').addEventListener('click', () => { if (eu() === ela() && BQ.b === 'oferecendo') mudarBQ('com_ela', BQ.vaso); });
+$('btnGuardarBuque').addEventListener('click', () => { if (BQ.of) mudarBQ({ of: 0 }); });
+$('btnReceber').addEventListener('click', () => { if (eu() === ela() && BQ.of) mudarBQ({ of: 0, ela: 1, n: BQ.n + 1 }); });     // se já tinha um, o novo entra no lugar
 $('btnCheirar').addEventListener('click', () => {
-  if (BQ.b !== 'com_ela') return; cheirando = 3.2; camBuque = 3.2; aplicarBQ(BQ.b);
+  if (!BQ.ela) return; cheirando = 3.2; camBuque = 3.2; aplicarBQ(null);
   ela().gato.expressao('felizes', 'sorriso', ['bochechas']); for (let i = 0; i < 4; i++) setTimeout(() => soltarCoracao(ela().x, ela().z), i * 250);
 });
-$('btnVaso').addEventListener('click', () => { if (eu() === ela() && BQ.b === 'com_ela' && pertoDoVaso()) { mudarBQ('nenhum', 1); aviso('As flores estão no vaso 💐'); } });
+$('btnVaso').addEventListener('click', () => { if (eu() === ela() && BQ.ela && pertoDoVaso()) { mudarBQ({ ela: 0, vaso: 1 }); aviso('As flores estão no vaso 💐'); } });
 const vA = new THREE.Vector3(), vB = new THREE.Vector3();
+function posicionarBuque(obj, j, modo) {
+  const [pe, pd] = patas[jogadores.indexOf(j)];
+  if (!pe || !pd) { obj.position.set(j.x + Math.sin(j.yaw) * 0.25, 0.6 + j.grupo.position.y, j.z + Math.cos(j.yaw) * 0.25); obj.rotation.set(0, j.yaw, 0); return; }
+  pe.getWorldPosition(vA); pd.getWorldPosition(vB); vA.add(vB).multiplyScalar(0.5);
+  const frente = modo === 'cheirar' ? 0.13 : 0.03;          // ao cheirar, as flores ficam logo abaixo do nariz, na frente do rosto
+  obj.position.set(vA.x + Math.sin(j.yaw) * frente, vA.y + (modo === 'cheirar' ? -0.04 : 0.02), vA.z + Math.cos(j.yaw) * frente);
+  obj.rotation.set(modo === 'oferecer' ? 0.55 : (modo === 'cheirar' ? 0.6 : 0.12), j.yaw, 0);
+}
 function atualizarBuque(dt) {
-  if (cheirando > 0 && (cheirando -= dt) <= 0) { cheirando = 0; aplicarBQ(BQ.b); ela().gato.humor('normal'); }
+  if (cheirando > 0 && (cheirando -= dt) <= 0) { cheirando = 0; aplicarBQ(null); ela().gato.humor('normal'); }
   if (camBuque > 0) camBuque -= dt;
   rotularBuque();
-  if (!buqueMao.visible) return;
-  const j = BQ.b === 'oferecendo' ? ele() : ela(), [pe, pd] = patas[jogadores.indexOf(j)];
-  if (!pe || !pd) { buqueMao.position.set(j.x + Math.sin(j.yaw) * 0.25, 0.6 + j.grupo.position.y, j.z + Math.cos(j.yaw) * 0.25); return; }
-  pe.getWorldPosition(vA); pd.getWorldPosition(vB); vA.add(vB).multiplyScalar(0.5);
-  const frente = cheirando > 0 ? 0.13 : 0.03;          // ao cheirar, as flores ficam logo abaixo do nariz, na frente do rosto
-  buqueMao.position.set(vA.x + Math.sin(j.yaw) * frente, vA.y + (cheirando > 0 ? -0.04 : 0.02), vA.z + Math.cos(j.yaw) * frente);
-  buqueMao.rotation.set(BQ.b === 'oferecendo' ? 0.55 : (cheirando > 0 ? 0.6 : 0.12), j.yaw, 0);
+  if (BQ.of) posicionarBuque(buqueEle, ele(), 'oferecer');
+  if (BQ.ela) posicionarBuque(buqueEla, ela(), cheirando > 0 ? 'cheirar' : 'segurar');
 }
+const buqueMao = buqueEla;           // (a câmera do "Cheirar" olha para o buquê dela)
 aplicarBQ(null);
 
 // ---------- online: cada um no seu celular ----------
@@ -630,7 +644,7 @@ const online = criarOnline({
   aoAbrir: (papel) => {
     clearTimeout(tConectando); $('onlineUI').hidden = true; alvoRemoto = null; atualizarOnlineUI();
     if (papel === 'anfitriao') { online.enviar({ t: 'ola', gato: ativo }); avisarMusica(); }
-    enviarLista(); rotularQuadro(); online.enviar({ t: 'bq', b: BQ.b, vaso: BQ.vaso, em: BQ.em });      // combina o estado do buquê (vale o mais novo)
+    enviarLista(); rotularQuadro(); online.enviar({ t: 'bq', of: BQ.of, ela: BQ.ela, vaso: BQ.vaso, n: BQ.n, em: BQ.em });      // combina o estado do buquê (vale o mais novo)
     aviso('Conectados! Agora cada um anda com o seu gatinho.');
   },
   aoMensagem: receber,
@@ -743,7 +757,7 @@ function atualizarCamera(dt) {
     const v = visadaQuadro(zoomQ || ultimoZoom), k = zoomK * zoomK * (3 - 2 * zoomK);
     desejada.lerp(v.pos, k); olhar.lerp(v.c, k); fov = 55 + (v.fov - 55) * k;
   }
-  buqK += ((camBuque > 0 && eu() === ela() && BQ.b === 'com_ela' ? 1 : 0) - buqK) * (1 - Math.exp(-4 * dt)); if (buqK < 0.002) buqK = 0;
+  buqK += ((camBuque > 0 && eu() === ela() && BQ.ela ? 1 : 0) - buqK) * (1 - Math.exp(-4 * dt)); if (buqK < 0.002) buqK = 0;
   if (buqK > 0) {          // "Cheirar": a câmera chega pertinho do rosto e do buquê
     const k = buqK * buqK * (3 - 2 * buqK);
     desejada.lerp(vA.set(p.x + Math.sin(p.yaw) * 1.25, 1.05 + p.grupo.position.y, p.z + Math.cos(p.yaw) * 1.25), k);

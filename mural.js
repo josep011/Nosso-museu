@@ -2,7 +2,7 @@
 // Fica na parede da frente do Salão das fotos (à direita da recepção). Tudo é guardado só nos aparelhos de vocês
 // (mesmo banco das fotos dos quadros, com ids "mural-...") e, no online, vai direto para o outro celular.
 import * as THREE from 'three';
-import * as armazem from './armazem.js?v=202610220905';
+import * as armazem from './armazem.js?v=202610220925';
 
 export const MURAL = { x: 7.56, y: 1.62, z: 7.955, w: 3.6, h: 1.8 };
 const CW = 2048, CH = 1024;                 // "papel" do mural (mesma proporção 2:1)
